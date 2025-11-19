@@ -171,3 +171,46 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+// New tables for Gatapreta Sapatilhas
+export const chatSessions = pgTable("chat_sessions", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  endedAt: timestamp("ended_at"),
+  abandoned: boolean("abandoned").notNull().default(false),
+  withMicroInteractions: boolean("with_micro_interactions").notNull().default(false),
+  metadata: jsonb("metadata"),
+});
+
+export type ChatSession = InferSelectModel<typeof chatSessions>;
+
+export const chatMessages = pgTable("chat_messages", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  sessionId: uuid("session_id")
+    .notNull()
+    .references(() => chatSessions.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  role: varchar("role", { enum: ["user", "assistant"] }).notNull(),
+  content: text("content").notNull(),
+  responseTimeMs: timestamp("response_time_ms"),
+  model: text("model"),
+  tokenCountPrompt: timestamp("token_count_prompt"),
+  tokenCountCompletion: timestamp("token_count_completion"),
+  messageIndex: timestamp("message_index").notNull(),
+});
+
+export type ChatMessage = InferSelectModel<typeof chatMessages>;
+
+export const chatFeedback = pgTable("chat_feedback", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  sessionId: uuid("session_id")
+    .notNull()
+    .references(() => chatSessions.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  satisfaction: timestamp("satisfaction").notNull(), // 1-5
+  confidence: timestamp("confidence").notNull(), // 1-5
+  comment: text("comment"),
+});
+
+export type ChatFeedback = InferSelectModel<typeof chatFeedback>;
