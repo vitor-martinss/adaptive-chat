@@ -201,7 +201,7 @@ function PureMultimodalInput({
             maxHeight={200}
             minHeight={44}
             onChange={handleInput}
-            placeholder="Send a message..."
+            placeholder="Digite sua mensagem..."
             ref={textareaRef}
             rows={1}
             value={input}
@@ -211,10 +211,7 @@ function PureMultimodalInput({
         <PromptInputToolbar className="!border-top-0 border-t-0! p-0 shadow-none">
           <PromptInputTools className="gap-0 sm:gap-0.5">
             {/* Attachments button removed for text-only chat */}
-            <ModelSelectorCompact
-              onModelChange={onModelChange}
-              selectedModelId={selectedModelId}
-            />
+            {/* Model selector hidden for simplified interface */}
           </PromptInputTools>
 
           {status === "submitted" ? (
