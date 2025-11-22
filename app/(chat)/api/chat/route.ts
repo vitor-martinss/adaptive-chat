@@ -10,6 +10,10 @@ import { regularPrompt } from "@/lib/ai/prompts";
 import { generateUUID } from "@/lib/utils";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 import { ChatSDKError } from "@/lib/errors";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { eq } from "drizzle-orm";
+import { chatSessions, chatMessages } from "@/lib/db/schema";
 
 export const maxDuration = 60;
 
@@ -42,8 +46,42 @@ export async function POST(request: Request) {
     // Create or get session ID
     const currentSessionId = sessionId || generateUUID();
     
-    // TODO: Save user message to database
-    // TODO: Build message history from database
+    // Save user message to database
+    const client = postgres(process.env.POSTGRES_URL!);
+    const db = drizzle(client);
+    
+    let sessionExists = false;
+    try {
+      const existingSession = await db.select().from(chatSessions).where(eq(chatSessions.id, currentSessionId)).limit(1);
+      sessionExists = existingSession.length > 0;
+    } catch (error) {
+      console.error('Error checking session:', error);
+    }
+    
+    // Create session if it doesn't exist
+    if (!sessionExists) {
+      try {
+        await db.insert(chatSessions).values({
+          id: currentSessionId,
+          withMicroInteractions,
+          metadata: { userAgent: request.headers.get('user-agent') }
+        });
+      } catch (error) {
+        console.error('Error creating session:', error);
+      }
+    }
+    
+    // Save user message
+    try {
+      await db.insert(chatMessages).values({
+        sessionId: currentSessionId,
+        role: 'user',
+        content: message,
+        messageIndex: new Date()
+      });
+    } catch (error) {
+      console.error('Error saving user message:', error);
+    }
     
     const messages = [
       {
@@ -68,8 +106,26 @@ export async function POST(request: Request) {
       onFinish: async ({ messages: responseMessages }) => {
         const responseTime = Date.now() - startTime;
         
-        // TODO: Save assistant message to database
-        // TODO: Save response metrics
+        // Save assistant message to database
+        try {
+          const assistantMessage = responseMessages.find(m => m.role === 'assistant');
+          if (assistantMessage) {
+            const messageText = assistantMessage.parts?.find(p => p.type === 'text')?.text || '';
+            
+            await db.insert(chatMessages).values({
+              sessionId: currentSessionId,
+              role: 'assistant',
+              content: messageText,
+              responseTimeMs: new Date(responseTime),
+              model: 'meta/llama-3.1-8b',
+              messageIndex: new Date()
+            });
+            
+            console.log(`Assistant message saved for session ${currentSessionId}`);
+          }
+        } catch (dbError) {
+          console.error('Failed to save assistant message:', dbError);
+        }
         
         console.log(`Response generated in ${responseTime}ms for session ${currentSessionId}`);
       },
