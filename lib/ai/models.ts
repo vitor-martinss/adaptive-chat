@@ -9,7 +9,7 @@ export type ChatModel = {
 export const chatModels: ChatModel[] = [
   {
     id: "chat-model",
-    name: "Llama 3.3 70B",
+    name: "Llama 3.1 8B",
     description: "Advanced language model for Gatapreta Sapatilhas support",
   },
 ];

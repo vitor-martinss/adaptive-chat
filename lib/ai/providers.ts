@@ -25,9 +25,9 @@ export const myProvider = isTestEnvironment
     })()
   : customProvider({
       languageModels: {
-        "chat-model": gateway.languageModel("groq/llama-3.3-70b-versatile"),
-        "chat-model-reasoning": gateway.languageModel("groq/llama-3.3-70b-versatile"),
-        "title-model": gateway.languageModel("groq/llama-3.3-70b-versatile"),
-        "artifact-model": gateway.languageModel("groq/llama-3.3-70b-versatile"),
+        "chat-model": gateway.languageModel("meta/llama-3.1-8b"),
+        "chat-model-reasoning": gateway.languageModel("meta/llama-3.1-8b"),
+        "title-model": gateway.languageModel("meta/llama-3.1-8b"),
+        "artifact-model": gateway.languageModel("meta/llama-3.1-8b"),
       },
     });
