@@ -1,81 +1,12 @@
-import { streamObject } from "ai";
-import { z } from "zod";
-import { sheetPrompt, updateDocumentPrompt } from "@/lib/ai/prompts";
-import { myProvider } from "@/lib/ai/providers";
 import { createDocumentHandler } from "@/lib/artifacts/server";
 
+// Disabled spreadsheet generation for Gatapreta shoe business chatbot
 export const sheetDocumentHandler = createDocumentHandler<"sheet">({
   kind: "sheet",
-  onCreateDocument: async ({ title, dataStream }) => {
-    let draftContent = "";
-
-    const { fullStream } = streamObject({
-      model: myProvider.languageModel("artifact-model"),
-      system: sheetPrompt,
-      prompt: title,
-      schema: z.object({
-        csv: z.string().describe("CSV data"),
-      }),
-    });
-
-    for await (const delta of fullStream) {
-      const { type } = delta;
-
-      if (type === "object") {
-        const { object } = delta;
-        const { csv } = object;
-
-        if (csv) {
-          dataStream.write({
-            type: "data-sheetDelta",
-            data: csv,
-            transient: true,
-          });
-
-          draftContent = csv;
-        }
-      }
-    }
-
-    dataStream.write({
-      type: "data-sheetDelta",
-      data: draftContent,
-      transient: true,
-    });
-
-    return draftContent;
+  onCreateDocument: async () => {
+    return "Name,Price\nSpreadsheet generation disabled,0";
   },
-  onUpdateDocument: async ({ document, description, dataStream }) => {
-    let draftContent = "";
-
-    const { fullStream } = streamObject({
-      model: myProvider.languageModel("artifact-model"),
-      system: updateDocumentPrompt(document.content, "sheet"),
-      prompt: description,
-      schema: z.object({
-        csv: z.string(),
-      }),
-    });
-
-    for await (const delta of fullStream) {
-      const { type } = delta;
-
-      if (type === "object") {
-        const { object } = delta;
-        const { csv } = object;
-
-        if (csv) {
-          dataStream.write({
-            type: "data-sheetDelta",
-            data: csv,
-            transient: true,
-          });
-
-          draftContent = csv;
-        }
-      }
-    }
-
-    return draftContent;
+  onUpdateDocument: async () => {
+    return "Name,Price\nSpreadsheet generation disabled,0";
   },
 });
