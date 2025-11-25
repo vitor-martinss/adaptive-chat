@@ -94,7 +94,10 @@ export function getTrailingMessageId({
 }
 
 export function sanitizeText(text: string) {
-  return text.replace('<has_function_call>', '');
+  return text
+    .replace('<has_function_call>', '')
+    .replace(/\s*•\s*/g, '\n\n• ') // Double line break for markdown
+    .replace(/^\n\n/, ''); // Remove leading line breaks
 }
 
 export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {

@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { motion } from "framer-motion";
-import { memo } from "react";
+import { memo, useState, useEffect } from "react";
 import type { ChatMessage } from "@/lib/types";
 import { Suggestion } from "./elements/suggestion";
 import type { VisibilityType } from "./visibility-selector";
@@ -11,15 +11,32 @@ type SuggestedActionsProps = {
   chatId: string;
   sendMessage: UseChatHelpers<ChatMessage>["sendMessage"];
   selectedVisibilityType: VisibilityType;
+  suggestions?: string[];
+  messagesLength?: number;
 };
 
-function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
-  const suggestedActions = [
-    "Quais são os tamanhos disponíveis?",
-    "Como funciona o frete?",
-    "Qual é a política de troca?",
-    "Formas de pagamento aceitas?",
+function PureSuggestedActions({ chatId, sendMessage, suggestions, messagesLength }: SuggestedActionsProps) {
+  const [isHidden, setIsHidden] = useState(false);
+  const [lastMessagesLength, setLastMessagesLength] = useState(messagesLength || 0);
+  
+  // Hide suggestions when new message is added
+  useEffect(() => {
+    if (messagesLength && messagesLength > lastMessagesLength) {
+      setIsHidden(true);
+    }
+    setLastMessagesLength(messagesLength || 0);
+  }, [messagesLength, lastMessagesLength]);
+  
+  const defaultSuggestions = [
+    "Vende no atacado?",
+    "Posso comprar com CPF?",
+    "Qual a quantidade mínima?",
+    "Onde eu vejo os preços?",
   ];
+  
+  const suggestedActions = suggestions && suggestions.length > 0 ? suggestions : defaultSuggestions;
+  
+  if (isHidden) return null;
 
   return (
     <div
@@ -37,6 +54,7 @@ function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
           <Suggestion
             className="h-auto w-full whitespace-normal p-3 text-left"
             onClick={(suggestion) => {
+              setIsHidden(true);
               window.history.replaceState({}, "", `/chat/${chatId}`);
               sendMessage({
                 role: "user",
@@ -60,6 +78,12 @@ export const SuggestedActions = memo(
       return false;
     }
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) {
+      return false;
+    }
+    if (JSON.stringify(prevProps.suggestions) !== JSON.stringify(nextProps.suggestions)) {
+      return false;
+    }
+    if (prevProps.messagesLength !== nextProps.messagesLength) {
       return false;
     }
 

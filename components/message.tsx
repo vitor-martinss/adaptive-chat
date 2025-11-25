@@ -20,10 +20,98 @@ import {
 } from "./elements/tool";
 import { SparklesIcon } from "./icons";
 import { MessageActions } from "./message-actions";
-
+import { SuggestedActions } from "./suggested-actions";
 import { MessageReasoning } from "./message-reasoning";
 import { PreviewAttachment } from "./preview-attachment";
 import { Weather } from "./weather";
+
+// Generate contextual suggestions based on AI response
+function generateContextualSuggestions(messageText: string): string[] {
+  const text = messageText.toLowerCase();
+  
+  // If mentions atacado/wholesale
+  if (text.includes('atacado') || text.includes('mínimo') || text.includes('199')) {
+    return [
+      "Como fazer um pedido?",
+      "Quais formas de pagamento?",
+      "Quanto tempo para entregar?",
+      "Tem catálogo?"
+    ];
+  }
+  
+  // If mentions CPF/CNPJ
+  if (text.includes('cpf') || text.includes('cnpj')) {
+    return [
+      "Qual a quantidade mínima?",
+      "Como fazer o pedido?",
+      "Quais são os preços?",
+      "Vocês entregam onde?"
+    ];
+  }
+  
+  // If mentions preços/prices
+  if (text.includes('preço') || text.includes('site') || text.includes('catálogo')) {
+    return [
+      "Como comprar?",
+      "Formas de pagamento?",
+      "Prazo de entrega?",
+      "Posso revender?"
+    ];
+  }
+  
+  // If mentions entrega/shipping
+  if (text.includes('entrega') || text.includes('frete') || text.includes('envio')) {
+    return [
+      "Quanto custa o frete?",
+      "Prazo de entrega?",
+      "Como rastrear?",
+      "Entrega em todo Brasil?"
+    ];
+  }
+  
+  // If mentions pagamento/payment
+  if (text.includes('pagamento') || text.includes('pix') || text.includes('cartão')) {
+    return [
+      "Posso parcelar?",
+      "Aceita boleto?",
+      "Como pagar?",
+      "Quando é cobrado?"
+    ];
+  }
+  
+  // If mentions produtos/products
+  if (text.includes('produto') || text.includes('sapatilha') || text.includes('sandália') || text.includes('tamanho')) {
+    return [
+      "Quais tamanhos disponíveis?",
+      "Tem outros modelos?",
+      "Como escolher o tamanho?",
+      "Posso ver o catálogo?"
+    ];
+  }
+  
+  // If mentions reserva/reservation
+  if (text.includes('reserva') || text.includes('reservar')) {
+    return [
+      "Como funciona a reserva?",
+      "Por quanto tempo?",
+      "Posso cancelar?",
+      "Como confirmar?"
+    ];
+  }
+  
+  // If mentions revenda/resale
+  if (text.includes('revenda') || text.includes('revender') || text.includes('cliente')) {
+    return [
+      "Como começar a revender?",
+      "Tem grupo de revendedores?",
+      "Margem de lucro?",
+      "Material de divulgação?"
+    ];
+  }
+  
+  // Default suggestions if no specific context
+  return [];
+}
 
 const PurePreviewMessage = ({
   chatId,
@@ -34,6 +122,9 @@ const PurePreviewMessage = ({
   regenerate,
   isReadonly,
   requiresScrollPadding,
+  sendMessage,
+  isLastAssistantMessage,
+  messagesLength,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -43,6 +134,9 @@ const PurePreviewMessage = ({
   regenerate: UseChatHelpers<ChatMessage>["regenerate"];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
+  sendMessage?: UseChatHelpers<ChatMessage>["sendMessage"];
+  isLastAssistantMessage?: boolean;
+  messagesLength?: number;
 }) => {
 
 
@@ -255,6 +349,28 @@ const PurePreviewMessage = ({
               message={message}
               vote={vote}
             />
+          )}
+
+          {!isReadonly && 
+           !isLoading && 
+           message.role === "assistant" && 
+           isLastAssistantMessage &&
+           sendMessage && 
+           process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" && (
+            <div className="mt-4">
+              <SuggestedActions
+                chatId={chatId}
+                messagesLength={messagesLength}
+                sendMessage={sendMessage}
+                selectedVisibilityType="public"
+                suggestions={generateContextualSuggestions(
+                  message.parts
+                    ?.filter(part => part.type === 'text')
+                    ?.map(part => part.text)
+                    ?.join(' ') || ''
+                )}
+              />
+            </div>
           )}
         </div>
       </div>

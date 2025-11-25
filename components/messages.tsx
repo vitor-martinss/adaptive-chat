@@ -21,6 +21,7 @@ type MessagesProps = {
   isReadonly: boolean;
   isArtifactVisible: boolean;
   selectedModelId: string;
+  sendMessage?: UseChatHelpers<ChatMessage>["sendMessage"];
 };
 
 function PureMessages({
@@ -32,6 +33,7 @@ function PureMessages({
   regenerate,
   isReadonly,
   selectedModelId,
+  sendMessage,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -69,27 +71,38 @@ function PureMessages({
         <ConversationContent className="flex flex-col gap-4 px-2 py-4 md:gap-6 md:px-4">
           {messages.length === 0 && <Greeting />}
 
-          {messages.map((message, index) => (
-            <PreviewMessage
-              chatId={chatId}
-              isLoading={
-                status === "streaming" && messages.length - 1 === index
-              }
-              isReadonly={isReadonly}
-              key={message.id}
-              message={message}
-              regenerate={regenerate}
-              requiresScrollPadding={
-                hasSentMessage && index === messages.length - 1
-              }
-              setMessages={setMessages}
-              vote={
-                votes
-                  ? votes.find((vote) => vote.messageId === message.id)
-                  : undefined
-              }
-            />
-          ))}
+          {messages.map((message, index) => {
+            // Find the last assistant message index
+            const lastAssistantMessageIndex = messages
+              .map((msg, idx) => ({ msg, idx }))
+              .filter(({ msg }) => msg.role === "assistant")
+              .pop()?.idx;
+            
+            return (
+              <PreviewMessage
+                chatId={chatId}
+                isLastAssistantMessage={index === lastAssistantMessageIndex}
+                isLoading={
+                  status === "streaming" && messages.length - 1 === index
+                }
+                isReadonly={isReadonly}
+                key={message.id}
+                message={message}
+                messagesLength={messages.length}
+                regenerate={regenerate}
+                requiresScrollPadding={
+                  hasSentMessage && index === messages.length - 1
+                }
+                sendMessage={sendMessage}
+                setMessages={setMessages}
+                vote={
+                  votes
+                    ? votes.find((vote) => vote.messageId === message.id)
+                    : undefined
+                }
+              />
+            );
+          })}
 
           <AnimatePresence mode="wait">
             {status === "submitted" && <ThinkingMessage key="thinking" />}
