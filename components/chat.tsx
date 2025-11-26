@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { ChatHeader } from "@/components/chat-header";
+import { DetailedFeedback } from "@/components/feedback-system";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -118,6 +119,15 @@ export function Chat({
   }, [query, sendMessage, hasAppendedQuery, id]);
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [showDetailedFeedback, setShowDetailedFeedback] = useState(false);
+  const messageCountRef = useRef(0);
+
+  useEffect(() => {
+    if (messages.length > messageCountRef.current && messages.length >= 6 && messages.length % 6 === 0) {
+      setShowDetailedFeedback(true);
+    }
+    messageCountRef.current = messages.length;
+  }, [messages.length]);
 
   // Load votes
   const { data: votes } = useSWR<Vote[]>(
@@ -170,6 +180,16 @@ export function Chat({
       </div>
 
       {/* Artifact component removed for simplified chat */}
+
+      <DetailedFeedback
+        isOpen={showDetailedFeedback}
+        onClose={() => {
+          setShowDetailedFeedback(false);
+          onFeedbackGiven?.();
+        }}
+        chatId={id}
+        trigger="milestone"
+      />
 
       <AlertDialog
         onOpenChange={setShowCreditCardAlert}
