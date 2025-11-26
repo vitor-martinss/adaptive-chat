@@ -167,11 +167,13 @@ export function PureMessageActionsEnhanced({
   message,
   vote,
   isLoading,
+  onFeedbackGiven,
 }: {
   chatId: string;
   message: ChatMessage;
   vote: Vote | undefined;
   isLoading: boolean;
+  onFeedbackGiven?: () => void;
 }) {
   const { mutate } = useSWRConfig();
   const [_, copyToClipboard] = useCopyToClipboard();
@@ -253,6 +255,7 @@ export function PureMessageActionsEnhanced({
                   { revalidate: false }
                 );
 
+                onFeedbackGiven?.();
                 return "Obrigado por avaliar a minha resposta!";
               },
               error: "Falha ao avaliar resposta.",
@@ -302,9 +305,10 @@ export function PureMessageActionsEnhanced({
                   { revalidate: false }
                 );
 
-                return "Downvoted Response!";
+                onFeedbackGiven?.();
+                return "Obrigado por avaliar a minha resposta!";
               },
-              error: "Failed to downvote response.",
+              error: "Falha ao avaliar resposta.",
             });
           }}
           tooltip="Downvote Response"
@@ -340,6 +344,9 @@ export const MessageActionsEnhanced = memo(
       return false;
     }
     if (prevProps.isLoading !== nextProps.isLoading) {
+      return false;
+    }
+    if (prevProps.onFeedbackGiven !== nextProps.onFeedbackGiven) {
       return false;
     }
 

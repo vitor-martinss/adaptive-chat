@@ -19,7 +19,7 @@ import {
   ToolOutput,
 } from "./elements/tool";
 import { SparklesIcon } from "./icons";
-import { MessageActions } from "./message-actions";
+import { MessageActionsEnhanced } from "./message-actions";
 import { SuggestedActions } from "./suggested-actions";
 import { MessageReasoning } from "./message-reasoning";
 import { PreviewAttachment } from "./preview-attachment";
@@ -125,6 +125,7 @@ const PurePreviewMessage = ({
   sendMessage,
   isLastAssistantMessage,
   messagesLength,
+  onFeedbackGiven,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -137,6 +138,7 @@ const PurePreviewMessage = ({
   sendMessage?: UseChatHelpers<ChatMessage>["sendMessage"];
   isLastAssistantMessage?: boolean;
   messagesLength?: number;
+  onFeedbackGiven?: () => void;
 }) => {
 
 
@@ -342,12 +344,13 @@ const PurePreviewMessage = ({
           })}
 
           {!isReadonly && (
-            <MessageActions
+            <MessageActionsEnhanced
               chatId={chatId}
               isLoading={isLoading}
               key={`action-${message.id}`}
               message={message}
               vote={vote}
+              onFeedbackGiven={onFeedbackGiven}
             />
           )}
 

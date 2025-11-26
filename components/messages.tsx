@@ -22,6 +22,7 @@ type MessagesProps = {
   isArtifactVisible: boolean;
   selectedModelId: string;
   sendMessage?: UseChatHelpers<ChatMessage>["sendMessage"];
+  onFeedbackGiven?: () => void;
 };
 
 function PureMessages({
@@ -34,6 +35,7 @@ function PureMessages({
   isReadonly,
   selectedModelId,
   sendMessage,
+  onFeedbackGiven,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -100,6 +102,7 @@ function PureMessages({
                     ? votes.find((vote) => vote.messageId === message.id)
                     : undefined
                 }
+                onFeedbackGiven={onFeedbackGiven}
               />
             );
           })}

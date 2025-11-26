@@ -64,6 +64,20 @@
       "when": 1763584916522,
       "tag": "0008_thick_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1764192296344,
+      "tag": "0009_talented_shaman",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1764192400000,
+      "tag": "0010_fix_chat_messages_columns",
+      "breakpoints": true
     }
   ]
 }

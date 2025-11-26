@@ -193,11 +193,11 @@ export const chatMessages = pgTable("chat_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   role: varchar("role", { enum: ["user", "assistant"] }).notNull(),
   content: text("content").notNull(),
-  responseTimeMs: varchar("response_time_ms", { length: 10 }),
+  responseTimeMs: varchar("response_time_ms", { length: 20 }),
   model: text("model"),
-  tokenCountPrompt: varchar("token_count_prompt", { length: 10 }),
-  tokenCountCompletion: varchar("token_count_completion", { length: 10 }),
-  messageIndex: varchar("message_index", { length: 10 }).notNull(),
+  tokenCountPrompt: varchar("token_count_prompt", { length: 20 }),
+  tokenCountCompletion: varchar("token_count_completion", { length: 20 }),
+  messageIndex: text("message_index").notNull(),
 });
 
 export type ChatMessage = InferSelectModel<typeof chatMessages>;

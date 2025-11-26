@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import useSWR from "swr";
 import { ChatHeader } from "@/components/chat-header";
 import {
   AlertDialog,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChatSDKError } from "@/lib/errors";
 import type { Attachment, ChatMessage } from "@/lib/types";
+import type { Vote } from "@/lib/db/schema";
 import { fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 import { useDataStream } from "./data-stream-provider";
 import { Messages } from "./messages";
@@ -31,6 +33,7 @@ export function Chat({
   initialVisibilityType,
   isReadonly,
   autoResume,
+  onFeedbackGiven,
 }: {
   id: string;
   initialMessages: ChatMessage[];
@@ -38,6 +41,7 @@ export function Chat({
   initialVisibilityType: VisibilityType;
   isReadonly: boolean;
   autoResume: boolean;
+  onFeedbackGiven?: () => void;
 }) {
   const { setDataStream } = useDataStream();
 
@@ -115,6 +119,16 @@ export function Chat({
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
+  // Load votes
+  const { data: votes } = useSWR<Vote[]>(
+    `/api/vote?chatId=${id}`,
+    (url) => fetch(url).then((res) => {
+      if (!res.ok) return [];
+      return res.json().then(data => Array.isArray(data) ? data : []);
+    }),
+    { fallbackData: [] }
+  );
+
   return (
     <>
       <div className="overscroll-behavior-contain flex h-dvh min-w-0 touch-pan-y flex-col bg-background">
@@ -130,7 +144,8 @@ export function Chat({
           sendMessage={sendMessage}
           setMessages={setMessages}
           status={status}
-          votes={[]}
+          votes={votes}
+          onFeedbackGiven={onFeedbackGiven}
         />
 
         <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">

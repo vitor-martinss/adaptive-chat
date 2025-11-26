@@ -13,7 +13,7 @@ import { ChatSDKError } from "@/lib/errors";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq } from "drizzle-orm";
-import { chatSessions, chatMessages, chat, user, message as messageTable } from "@/lib/db/schema";
+import { chatSessions, chatMessages, chat, user } from "@/lib/db/schema";
 
 export const maxDuration = 60;
 
@@ -107,18 +107,10 @@ export async function POST(request: Request) {
         sessionId: currentSessionId,
         role: 'user',
         content: message,
-        messageIndex: '1'
+        messageIndex: userMessageId
       });
       
-      // Also save to Message_v2 for vote compatibility
-      await db.insert(messageTable).values({
-        id: userMessageId,
-        chatId: currentSessionId,
-        role: 'user',
-        parts: [{ type: 'text', text: message }],
-        attachments: [],
-        createdAt: new Date()
-      });
+
     } catch (error) {
       console.error('Error saving user message:', error);
     }
@@ -146,36 +138,22 @@ export async function POST(request: Request) {
       onFinish: async ({ messages: responseMessages }) => {
         const responseTime = Date.now() - startTime;
         
-        // Save assistant message to database
+        // Save assistant message
         try {
           const assistantMessage = responseMessages.find(m => m.role === 'assistant');
           if (assistantMessage) {
             const messageText = assistantMessage.parts?.find(p => p.type === 'text')?.text || '';
-            const assistantMessageId = generateUUID();
             
             await db.insert(chatMessages).values({
-              id: assistantMessageId,
+              id: assistantMessage.id,
               sessionId: currentSessionId,
               role: 'assistant',
               content: messageText,
-              model: 'meta/llama-3.1-8b',
-              messageIndex: '2'
+              messageIndex: assistantMessage.id
             });
-            
-            // Also save to Message_v2 for vote compatibility
-            await db.insert(messageTable).values({
-              id: assistantMessageId,
-              chatId: currentSessionId,
-              role: 'assistant',
-              parts: [{ type: 'text', text: messageText }],
-              attachments: [],
-              createdAt: new Date()
-            });
-            
-            console.log(`Assistant message saved for session ${currentSessionId}`);
           }
-        } catch (dbError) {
-          console.error('Failed to save assistant message:', dbError);
+        } catch (error) {
+          console.error('Failed to save assistant message:', error);
         }
         
         console.log(`Response generated in ${responseTime}ms for session ${currentSessionId}`);

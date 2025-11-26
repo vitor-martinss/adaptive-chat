@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { and, eq } from "drizzle-orm";
-import { vote, chatSessions } from "@/lib/db/schema";
+import { chatMessages, vote, message } from "@/lib/db/schema";
 
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
@@ -18,17 +18,33 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Check if session exists
-    const [session] = await db
+    // Ensure message exists in Message_v2
+    const [existingMessage] = await db
       .select()
-      .from(chatSessions)
-      .where(eq(chatSessions.id, chatId));
+      .from(message)
+      .where(eq(message.id, messageId));
 
-    if (!session) {
-      return NextResponse.json(
-        { error: "Session not found" },
-        { status: 404 }
-      );
+    if (!existingMessage) {
+      const [chatMessage] = await db
+        .select()
+        .from(chatMessages)
+        .where(eq(chatMessages.id, messageId));
+
+      if (chatMessage) {
+        await db.insert(message).values({
+          id: messageId,
+          chatId,
+          role: chatMessage.role,
+          parts: [{ type: 'text', text: chatMessage.content }],
+          attachments: [],
+          createdAt: new Date()
+        });
+      } else {
+        return NextResponse.json(
+          { error: "Message not found" },
+          { status: 404 }
+        );
+      }
     }
 
     const [existingVote] = await db
@@ -72,7 +88,7 @@ export async function GET(request: NextRequest) {
     }
 
     const votes = await db.select().from(vote).where(eq(vote.chatId, chatId));
-    return NextResponse.json(votes);
+    return NextResponse.json(Array.isArray(votes) ? votes : []);
   } catch (error) {
     console.error("Get votes error:", error);
     return NextResponse.json(
