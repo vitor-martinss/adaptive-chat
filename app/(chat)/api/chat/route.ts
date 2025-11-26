@@ -13,7 +13,7 @@ import { ChatSDKError } from "@/lib/errors";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq } from "drizzle-orm";
-import { chatSessions, chatMessages } from "@/lib/db/schema";
+import { chatSessions, chatMessages, chat, user, message as messageTable } from "@/lib/db/schema";
 
 export const maxDuration = 60;
 
@@ -61,23 +61,63 @@ export async function POST(request: Request) {
     // Create session if it doesn't exist
     if (!sessionExists) {
       try {
+        // Create guest user if needed
+        let guestUser;
+        try {
+          const [existingUser] = await db.select().from(user).where(eq(user.email, 'guest@localhost')).limit(1);
+          if (!existingUser) {
+            [guestUser] = await db.insert(user).values({
+              email: 'guest@localhost',
+              password: 'guest'
+            }).returning();
+          } else {
+            guestUser = existingUser;
+          }
+        } catch (userError) {
+          console.error('Error with guest user:', userError);
+        }
+
+        // Create chat session
         await db.insert(chatSessions).values({
           id: currentSessionId,
           withMicroInteractions,
           metadata: { userAgent: request.headers.get('user-agent') }
         });
+
+        // Create Chat entry for vote compatibility
+        if (guestUser) {
+          await db.insert(chat).values({
+            id: currentSessionId,
+            createdAt: new Date(),
+            title: 'Chat Session',
+            userId: guestUser.id,
+            visibility: 'private'
+          });
+        }
       } catch (error) {
         console.error('Error creating session:', error);
       }
     }
     
     // Save user message
+    const userMessageId = generateUUID();
     try {
       await db.insert(chatMessages).values({
+        id: userMessageId,
         sessionId: currentSessionId,
         role: 'user',
         content: message,
-        messageIndex: new Date()
+        messageIndex: '1'
+      });
+      
+      // Also save to Message_v2 for vote compatibility
+      await db.insert(messageTable).values({
+        id: userMessageId,
+        chatId: currentSessionId,
+        role: 'user',
+        parts: [{ type: 'text', text: message }],
+        attachments: [],
+        createdAt: new Date()
       });
     } catch (error) {
       console.error('Error saving user message:', error);
@@ -111,14 +151,25 @@ export async function POST(request: Request) {
           const assistantMessage = responseMessages.find(m => m.role === 'assistant');
           if (assistantMessage) {
             const messageText = assistantMessage.parts?.find(p => p.type === 'text')?.text || '';
+            const assistantMessageId = generateUUID();
             
             await db.insert(chatMessages).values({
+              id: assistantMessageId,
               sessionId: currentSessionId,
               role: 'assistant',
               content: messageText,
-              responseTimeMs: new Date(responseTime),
               model: 'meta/llama-3.1-8b',
-              messageIndex: new Date()
+              messageIndex: '2'
+            });
+            
+            // Also save to Message_v2 for vote compatibility
+            await db.insert(messageTable).values({
+              id: assistantMessageId,
+              chatId: currentSessionId,
+              role: 'assistant',
+              parts: [{ type: 'text', text: messageText }],
+              attachments: [],
+              createdAt: new Date()
             });
             
             console.log(`Assistant message saved for session ${currentSessionId}`);

@@ -186,18 +186,18 @@ export const chatSessions = pgTable("chat_sessions", {
 export type ChatSession = InferSelectModel<typeof chatSessions>;
 
 export const chatMessages = pgTable("chat_messages", {
-  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  id: uuid("id").primaryKey().notNull(),
   sessionId: uuid("session_id")
     .notNull()
     .references(() => chatSessions.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   role: varchar("role", { enum: ["user", "assistant"] }).notNull(),
   content: text("content").notNull(),
-  responseTimeMs: timestamp("response_time_ms"),
+  responseTimeMs: varchar("response_time_ms", { length: 10 }),
   model: text("model"),
-  tokenCountPrompt: timestamp("token_count_prompt"),
-  tokenCountCompletion: timestamp("token_count_completion"),
-  messageIndex: timestamp("message_index").notNull(),
+  tokenCountPrompt: varchar("token_count_prompt", { length: 10 }),
+  tokenCountCompletion: varchar("token_count_completion", { length: 10 }),
+  messageIndex: varchar("message_index", { length: 10 }).notNull(),
 });
 
 export type ChatMessage = InferSelectModel<typeof chatMessages>;
@@ -208,9 +208,11 @@ export const chatFeedback = pgTable("chat_feedback", {
     .notNull()
     .references(() => chatSessions.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  satisfaction: timestamp("satisfaction").notNull(), // 1-5
-  confidence: timestamp("confidence").notNull(), // 1-5
+  satisfaction: varchar("satisfaction", { length: 1 }).notNull(), // 1-5
+  confidence: varchar("confidence", { length: 1 }).notNull(), // 1-5
   comment: text("comment"),
 });
 
 export type ChatFeedback = InferSelectModel<typeof chatFeedback>;
+
+

@@ -1,5 +1,5 @@
 import equal from "fast-deep-equal";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { useCopyToClipboard } from "usehooks-ts";
@@ -7,6 +7,7 @@ import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { Action, Actions } from "./elements/actions";
 import { CopyIcon, ThumbDownIcon, ThumbUpIcon } from "./icons";
+import { FeedbackText } from "./feedback-system";
 
 export function PureMessageActions({
   chatId,
@@ -122,7 +123,7 @@ export function PureMessageActions({
           });
 
           toast.promise(downvote, {
-            loading: "Downvoting Response...",
+            loading: "Avaliando resposta...",
             success: () => {
               mutate<Vote[]>(
                 `/api/vote?chatId=${chatId}`,
@@ -147,9 +148,9 @@ export function PureMessageActions({
                 { revalidate: false }
               );
 
-              return "Downvoted Response!";
+              return "Obrigado por avaliar a minha resposta!";
             },
-            error: "Failed to downvote response.",
+            error: "Falha ao avaliar resposta.",
           });
         }}
         tooltip="Downvote Response"
@@ -160,8 +161,180 @@ export function PureMessageActions({
   );
 }
 
+// Enhanced version with quick feedback
+export function PureMessageActionsEnhanced({
+  chatId,
+  message,
+  vote,
+  isLoading,
+}: {
+  chatId: string;
+  message: ChatMessage;
+  vote: Vote | undefined;
+  isLoading: boolean;
+}) {
+  const { mutate } = useSWRConfig();
+  const [_, copyToClipboard] = useCopyToClipboard();
+  const [showQuickFeedback, setShowQuickFeedback] = useState(false);
+
+  if (isLoading) {
+    return null;
+  }
+
+  const textFromParts = message.parts
+    ?.filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+
+  const handleCopy = async () => {
+    if (!textFromParts) {
+      toast.error("There's no text to copy!");
+      return;
+    }
+
+    await copyToClipboard(textFromParts);
+    toast.success("Copied to clipboard!");
+  };
+
+  if (message.role === "user") {
+    return (
+      <Actions className="-mr-0.5 justify-end">
+        <Action onClick={handleCopy} tooltip="Copy">
+          <CopyIcon />
+        </Action>
+      </Actions>
+    );
+  }
+
+  return (
+    <div>
+      <Actions className="-ml-0.5">
+        <Action onClick={handleCopy} tooltip="Copy">
+          <CopyIcon />
+        </Action>
+
+        <Action
+          data-testid="message-upvote"
+          disabled={vote?.isUpvoted}
+          onClick={() => {
+            const upvote = fetch("/api/vote", {
+              method: "PATCH",
+              body: JSON.stringify({
+                chatId,
+                messageId: message.id,
+                type: "up",
+              }),
+            });
+
+            toast.promise(upvote, {
+              loading: "Avaliando resposta...",
+              success: () => {
+                mutate<Vote[]>(
+                  `/api/vote?chatId=${chatId}`,
+                  (currentVotes) => {
+                    if (!currentVotes) {
+                      return [];
+                    }
+
+                    const votesWithoutCurrent = currentVotes.filter(
+                      (currentVote) => currentVote.messageId !== message.id
+                    );
+
+                    return [
+                      ...votesWithoutCurrent,
+                      {
+                        chatId,
+                        messageId: message.id,
+                        isUpvoted: true,
+                      },
+                    ];
+                  },
+                  { revalidate: false }
+                );
+
+                return "Obrigado por avaliar a minha resposta!";
+              },
+              error: "Falha ao avaliar resposta.",
+            });
+          }}
+          tooltip="Upvote Response"
+        >
+          <ThumbUpIcon />
+        </Action>
+
+        <Action
+          data-testid="message-downvote"
+          disabled={vote && !vote.isUpvoted}
+          onClick={() => {
+            const downvote = fetch("/api/vote", {
+              method: "PATCH",
+              body: JSON.stringify({
+                chatId,
+                messageId: message.id,
+                type: "down",
+              }),
+            });
+
+            toast.promise(downvote, {
+              loading: "Downvoting Response...",
+              success: () => {
+                mutate<Vote[]>(
+                  `/api/vote?chatId=${chatId}`,
+                  (currentVotes) => {
+                    if (!currentVotes) {
+                      return [];
+                    }
+
+                    const votesWithoutCurrent = currentVotes.filter(
+                      (currentVote) => currentVote.messageId !== message.id
+                    );
+
+                    return [
+                      ...votesWithoutCurrent,
+                      {
+                        chatId,
+                        messageId: message.id,
+                        isUpvoted: false,
+                      },
+                    ];
+                  },
+                  { revalidate: false }
+                );
+
+                return "Downvoted Response!";
+              },
+              error: "Failed to downvote response.",
+            });
+          }}
+          tooltip="Downvote Response"
+        >
+          <ThumbDownIcon />
+        </Action>
+      </Actions>
+      
+      {/* Feedback text */}
+      <FeedbackText />
+    </div>
+  );
+}
+
 export const MessageActions = memo(
   PureMessageActions,
+  (prevProps, nextProps) => {
+    if (!equal(prevProps.vote, nextProps.vote)) {
+      return false;
+    }
+    if (prevProps.isLoading !== nextProps.isLoading) {
+      return false;
+    }
+
+    return true;
+  }
+);
+
+export const MessageActionsEnhanced = memo(
+  PureMessageActionsEnhanced,
   (prevProps, nextProps) => {
     if (!equal(prevProps.vote, nextProps.vote)) {
       return false;
