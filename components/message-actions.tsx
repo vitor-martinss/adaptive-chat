@@ -104,7 +104,7 @@ export function PureMessageActions({
             error: "Failed to upvote response.",
           });
         }}
-        tooltip="Upvote Response"
+        tooltip="Gostei"
       >
         <ThumbUpIcon />
       </Action>
@@ -148,12 +148,12 @@ export function PureMessageActions({
                 { revalidate: false }
               );
 
-              return "Obrigado por avaliar a minha resposta!";
+              return "Obrigado pela sua avaliação!";
             },
             error: "Falha ao avaliar resposta.",
           });
         }}
-        tooltip="Downvote Response"
+        tooltip="Não Gostei"
       >
         <ThumbDownIcon />
       </Action>
@@ -230,7 +230,7 @@ export function PureMessageActionsEnhanced({
             });
 
             toast.promise(upvote, {
-              loading: "Avaliando resposta...",
+              loading: "Processando resposta...",
               success: () => {
                 mutate<Vote[]>(
                   `/api/vote?chatId=${chatId}`,
@@ -256,12 +256,12 @@ export function PureMessageActionsEnhanced({
                 );
 
                 onFeedbackGiven?.();
-                return "Obrigado por avaliar a minha resposta!";
+                return "Obrigado pela sua avaliação!";
               },
               error: "Falha ao avaliar resposta.",
             });
           }}
-          tooltip="Upvote Response"
+          tooltip="Gostei"
         >
           <ThumbUpIcon />
         </Action>
@@ -280,7 +280,7 @@ export function PureMessageActionsEnhanced({
             });
 
             toast.promise(downvote, {
-              loading: "Downvoting Response...",
+              loading: "Processando resposta...",
               success: () => {
                 mutate<Vote[]>(
                   `/api/vote?chatId=${chatId}`,
@@ -306,12 +306,12 @@ export function PureMessageActionsEnhanced({
                 );
 
                 onFeedbackGiven?.();
-                return "Obrigado por avaliar a minha resposta!";
+                return "Obrigado pela sua avaliação!";
               },
               error: "Falha ao avaliar resposta.",
             });
           }}
-          tooltip="Downvote Response"
+          tooltip="Não Gostei"
         >
           <ThumbDownIcon />
         </Action>
