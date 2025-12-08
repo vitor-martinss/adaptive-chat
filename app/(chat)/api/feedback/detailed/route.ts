@@ -9,9 +9,11 @@ const db = drizzle(client);
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, satisfaction, confidence, comment } = await request.json();
+    const body = await request.json();
+    const { chatId, sessionId, satisfaction, confidence, comment } = body;
+    const id = sessionId || chatId;
 
-    if (!sessionId || !satisfaction) {
+    if (!id || !satisfaction) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -19,16 +21,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure session exists
-    const [session] = await db.select().from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
+    const [session] = await db.select().from(chatSessions).where(eq(chatSessions.id, id)).limit(1);
     if (!session) {
-      await db.insert(chatSessions).values({ id: sessionId });
+      await db.insert(chatSessions).values({ id });
     }
 
     await db.insert(chatFeedback).values({
-      sessionId,
+      sessionId: id,
       satisfaction: satisfaction.toString(),
       confidence: confidence?.toString() || "5",
-      comment,
+      comment: comment || null,
     });
 
     return NextResponse.json({ success: true });

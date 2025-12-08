@@ -145,11 +145,11 @@ export function AdminDashboard() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Avg Satisfaction:</span>
-                <span className="font-bold">{stats.avgSatisfaction.toFixed(1)}/5</span>
+                <span className="font-bold">{Number(stats.avgSatisfaction || 0).toFixed(1)}/5</span>
               </div>
               <div className="flex justify-between">
                 <span>Avg Confidence:</span>
-                <span className="font-bold">{stats.avgConfidence.toFixed(1)}/5</span>
+                <span className="font-bold">{Number(stats.avgConfidence || 0).toFixed(1)}/5</span>
               </div>
             </div>
           </CardContent>

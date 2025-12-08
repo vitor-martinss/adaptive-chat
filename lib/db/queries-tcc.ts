@@ -102,17 +102,18 @@ export async function getDashboardStats(filters?: {
       .where(whereClause);
 
     // Feedback metrics
-    const [avgSatisfaction] = await db
-      .select({ avg: avg(sql`CAST(${chatFeedback.satisfaction} AS INTEGER)`) })
-      .from(chatFeedback)
-      .innerJoin(chatSessions, eq(chatFeedback.sessionId, chatSessions.id))
-      .where(whereClause);
-
-    const [avgConfidence] = await db
-      .select({ avg: avg(sql`CAST(${chatFeedback.confidence} AS INTEGER)`) })
-      .from(chatFeedback)
-      .innerJoin(chatSessions, eq(chatFeedback.sessionId, chatSessions.id))
-      .where(whereClause);
+    let feedbackStats = { avgSat: 0, avgConf: 0 };
+    try {
+      const result = await client.unsafe(`
+        SELECT 
+          AVG(satisfaction::INTEGER) as "avgSat",
+          AVG(confidence::INTEGER) as "avgConf"
+        FROM chat_feedback
+      `);
+      if (result[0]) feedbackStats = result[0];
+    } catch (e) {
+      console.error('Feedback query error:', e);
+    }
 
     // Vote metrics
     const [totalVotes] = await db.select({ count: count() }).from(chatVotes);
@@ -139,14 +140,14 @@ export async function getDashboardStats(filters?: {
     // Time series data
     const sessionsPerDay = await db
       .select({
-        date: sql<string>`DATE(created_at)`,
+        date: sql<string>`DATE(chat_sessions.created_at)`,
         withMicro: chatSessions.withMicroInteractions,
         count: count(),
       })
       .from(chatSessions)
       .where(whereClause)
-      .groupBy(sql`DATE(created_at)`, chatSessions.withMicroInteractions)
-      .orderBy(sql`DATE(created_at)`);
+      .groupBy(sql`DATE(chat_sessions.created_at)`, chatSessions.withMicroInteractions)
+      .orderBy(sql`DATE(chat_sessions.created_at)`);
 
     const total = totalSessions?.count || 0;
     const abandonedCount = abandoned?.count || 0;
@@ -162,8 +163,8 @@ export async function getDashboardStats(filters?: {
       abandonmentRate: total > 0 ? (abandonedCount / total) * 100 : 0,
       totalMessages: totalMessages?.count || 0,
       avgMessagesPerSession: parseFloat(avgMessages?.avg || "0"),
-      avgSatisfaction: parseFloat(avgSatisfaction?.avg || "0"),
-      avgConfidence: parseFloat(avgConfidence?.avg || "0"),
+      avgSatisfaction: feedbackStats?.avgSat || 0,
+      avgConfidence: feedbackStats?.avgConf || 0,
       totalVotes: totalVotesCount,
       upvotes: upvotesCount,
       downvotes: totalVotesCount - upvotesCount,

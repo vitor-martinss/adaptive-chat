@@ -22,6 +22,14 @@ export function ChatWithFeedback({
 }) {
   const { setHasGivenFeedback } = useFeedbackWarning();
 
+  useEffect(() => {
+    fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: id }),
+    }).catch(console.error);
+  }, [id]);
+
   return (
     <Chat
       id={id}
