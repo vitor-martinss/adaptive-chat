@@ -110,7 +110,7 @@ export async function getDashboardStats(filters?: {
           AVG(confidence::INTEGER) as "avgConf"
         FROM chat_feedback
       `);
-      if (result[0]) feedbackStats = result[0];
+      if (result[0]) feedbackStats = { avgSat: Number(result[0].avgSat) || 0, avgConf: Number(result[0].avgConf) || 0 };
     } catch (e) {
       console.error('Feedback query error:', e);
     }
@@ -163,8 +163,8 @@ export async function getDashboardStats(filters?: {
       abandonmentRate: total > 0 ? (abandonedCount / total) * 100 : 0,
       totalMessages: totalMessages?.count || 0,
       avgMessagesPerSession: parseFloat(avgMessages?.avg || "0"),
-      avgSatisfaction: feedbackStats?.avgSat || 0,
-      avgConfidence: feedbackStats?.avgConf || 0,
+      avgSatisfaction: Number(feedbackStats.avgSat) || 0,
+      avgConfidence: Number(feedbackStats.avgConf) || 0,
       totalVotes: totalVotesCount,
       upvotes: upvotesCount,
       downvotes: totalVotesCount - upvotesCount,
