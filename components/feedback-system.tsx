@@ -26,7 +26,7 @@ export function DetailedFeedback({
   isOpen: boolean; 
   onClose: () => void; 
   chatId: string;
-  trigger: "end_session" | "milestone" | "exit_intent";
+  trigger: "end_session" | "milestone" | "exit_intent" | "idle";
 }) {
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [aspects, setAspects] = useState<string[]>([]);

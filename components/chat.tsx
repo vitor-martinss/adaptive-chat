@@ -84,6 +84,19 @@ export function Chat({
     }),
     onData: (dataPart) => {
       setDataStream((ds) => (ds ? [...ds, dataPart] : []));
+      
+      // Check if AI suggests showing feedback
+      if (!hasShownFeedback && dataPart.type === 'data-textDelta' && 'textDelta' in dataPart && typeof dataPart.textDelta === 'string') {
+        const text = dataPart.textDelta.toLowerCase();
+        const endPhrases = ['posso ajudar', 'mais alguma', 'algo mais', 'ficou claro', 'consegui ajudar'];
+        if (messages.length >= 3 && endPhrases.some(phrase => text.includes(phrase))) {
+          setTimeout(() => {
+            setFeedbackTrigger("end_session");
+            setShowDetailedFeedback(true);
+            setHasShownFeedback(true);
+          }, 1000);
+        }
+      }
     },
     onError: (error) => {
       if (error instanceof ChatSDKError) {
@@ -120,14 +133,47 @@ export function Chat({
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showDetailedFeedback, setShowDetailedFeedback] = useState(false);
-  const messageCountRef = useRef(0);
+  const [feedbackTrigger, setFeedbackTrigger] = useState<"milestone" | "idle" | "end_session">("milestone");
+  const [hasShownFeedback, setHasShownFeedback] = useState(false);
+  const lastActivityRef = useRef(Date.now());
+  const idleTimerRef = useRef<NodeJS.Timeout>();
+  const lastMessageCountRef = useRef(0);
 
+  // Idle detection - 15s inactivity
   useEffect(() => {
-    if (messages.length > messageCountRef.current && messages.length >= 6 && messages.length % 6 === 0) {
-      setShowDetailedFeedback(true);
+    const resetIdle = () => {
+      lastActivityRef.current = Date.now();
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      
+      if (messages.length >= 3 && !showDetailedFeedback && !hasShownFeedback) {
+        idleTimerRef.current = setTimeout(() => {
+          setFeedbackTrigger("idle");
+          setShowDetailedFeedback(true);
+          setHasShownFeedback(true);
+        }, 10000);
+      }
+    };
+
+    window.addEventListener('mousemove', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    window.addEventListener('click', resetIdle);
+    resetIdle();
+
+    return () => {
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      window.removeEventListener('click', resetIdle);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [messages.length, showDetailedFeedback, hasShownFeedback]);
+
+  // Reset feedback flag when user continues chatting after feedback
+  useEffect(() => {
+    if (hasShownFeedback && messages.length > lastMessageCountRef.current + 4) {
+      setHasShownFeedback(false);
     }
-    messageCountRef.current = messages.length;
-  }, [messages.length]);
+    lastMessageCountRef.current = messages.length;
+  }, [messages.length, hasShownFeedback]);
 
   // Load votes
   const { data: votes } = useSWR<Vote[]>(
@@ -188,7 +234,7 @@ export function Chat({
           onFeedbackGiven?.();
         }}
         chatId={id}
-        trigger="milestone"
+        trigger={feedbackTrigger}
       />
 
       <AlertDialog
