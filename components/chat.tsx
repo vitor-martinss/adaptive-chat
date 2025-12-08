@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChatSDKError } from "@/lib/errors";
 import type { Attachment, ChatMessage } from "@/lib/types";
-import type { Vote } from "@/lib/db/schema";
+type Vote = { messageId: string; isUpvoted: boolean };
 import { fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 import { useDataStream } from "./data-stream-provider";
 import { Messages } from "./messages";

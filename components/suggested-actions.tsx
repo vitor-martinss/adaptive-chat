@@ -56,6 +56,17 @@ function PureSuggestedActions({ chatId, sendMessage, suggestions, messagesLength
             onClick={(suggestion) => {
               setIsHidden(true);
               window.history.replaceState({}, "", `/chat/${chatId}`);
+              
+              fetch("/api/interactions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sessionId: chatId,
+                  interactionType: "suggestion_click",
+                  content: suggestion,
+                }),
+              }).catch(console.error);
+              
               sendMessage({
                 role: "user",
                 parts: [{ type: "text", text: suggestion }],

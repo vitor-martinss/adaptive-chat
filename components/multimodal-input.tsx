@@ -129,6 +129,16 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     window.history.pushState({}, "", `/chat/${chatId}`);
 
+    fetch("/api/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: chatId,
+        interactionType: "typed_message",
+        content: input,
+      }),
+    }).catch(console.error);
+
     sendMessage({
       role: "user",
       parts: [

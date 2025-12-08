@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { and, eq } from "drizzle-orm";
-import { chatMessages, vote, message } from "@/lib/db/schema";
+import { chatVotes, chatMessages } from "@/lib/db/schema";
 
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
@@ -18,47 +18,18 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Ensure message exists in Message_v2
-    const [existingMessage] = await db
-      .select()
-      .from(message)
-      .where(eq(message.id, messageId));
-
-    if (!existingMessage) {
-      const [chatMessage] = await db
-        .select()
-        .from(chatMessages)
-        .where(eq(chatMessages.id, messageId));
-
-      if (chatMessage) {
-        await db.insert(message).values({
-          id: messageId,
-          chatId,
-          role: chatMessage.role,
-          parts: [{ type: 'text', text: chatMessage.content }],
-          attachments: [],
-          createdAt: new Date()
-        });
-      } else {
-        return NextResponse.json(
-          { error: "Message not found" },
-          { status: 404 }
-        );
-      }
-    }
-
     const [existingVote] = await db
       .select()
-      .from(vote)
-      .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)));
+      .from(chatVotes)
+      .where(and(eq(chatVotes.messageId, messageId), eq(chatVotes.chatId, chatId)));
 
     if (existingVote) {
       await db
-        .update(vote)
+        .update(chatVotes)
         .set({ isUpvoted: type === "up" })
-        .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)));
+        .where(and(eq(chatVotes.messageId, messageId), eq(chatVotes.chatId, chatId)));
     } else {
-      await db.insert(vote).values({
+      await db.insert(chatVotes).values({
         chatId,
         messageId,
         isUpvoted: type === "up",
@@ -87,7 +58,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const votes = await db.select().from(vote).where(eq(vote.chatId, chatId));
+    const votes = await db.select().from(chatVotes).where(eq(chatVotes.chatId, chatId));
     return NextResponse.json(Array.isArray(votes) ? votes : []);
   } catch (error) {
     console.error("Get votes error:", error);

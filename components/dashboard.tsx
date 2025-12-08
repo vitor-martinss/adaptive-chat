@@ -2,30 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MessageSquare, MousePointerClick, ThumbsUp, MessageCircle } from "lucide-react";
 
 type DashboardStats = {
-  totalSessions: number;
-  abandonmentRate: number;
-  avgSatisfaction: number;
-  avgConfidence: number;
-  withMicroInteractions: number;
-  withoutMicroInteractions: number;
+  totalChats: number;
   totalMessages: number;
   totalVotes: number;
   positiveVotes: number;
+  suggestionClicks: number;
+  typedMessages: number;
 };
 
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
-    totalSessions: 0,
-    abandonmentRate: 0,
-    avgSatisfaction: 0,
-    avgConfidence: 0,
-    withMicroInteractions: 0,
-    withoutMicroInteractions: 0,
+    totalChats: 0,
     totalMessages: 0,
     totalVotes: 0,
     positiveVotes: 0,
+    suggestionClicks: 0,
+    typedMessages: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -42,83 +37,102 @@ export function Dashboard() {
   if (loading) {
     return (
       <div className="container mx-auto p-6">
-        <div className="text-center">Carregando...</div>
+        <div className="text-center">Loading...</div>
       </div>
     );
   }
 
+  const positiveVoteRate = stats.totalVotes > 0 
+    ? ((stats.positiveVotes / stats.totalVotes) * 100).toFixed(1) 
+    : 0;
+
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Dashboard - Gatapreta Sapatilhas</h1>
+      <h1 className="mb-6 text-3xl font-bold">Dashboard</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Total de Sessões</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Chats</CardTitle>
+            <MessageCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats.totalSessions}</p>
+            <div className="text-2xl font-bold">{stats.totalChats}</div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader>
-            <CardTitle>Taxa de Abandono</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{(stats.abandonmentRate || 0).toFixed(1)}%</p>
+            <div className="text-2xl font-bold">{stats.totalMessages}</div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader>
-            <CardTitle>Satisfação Média</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Suggestion Clicks</CardTitle>
+            <MousePointerClick className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{(stats.avgSatisfaction || 0).toFixed(1)}/5</p>
+            <div className="text-2xl font-bold">{stats.suggestionClicks}</div>
+            <p className="text-xs text-muted-foreground">AI-suggested questions</p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader>
-            <CardTitle>Total de Mensagens</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Typed Messages</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats.totalMessages}</p>
+            <div className="text-2xl font-bold">{stats.typedMessages}</div>
+            <p className="text-xs text-muted-foreground">User-typed questions</p>
           </CardContent>
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>Votos Positivos</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Positive Feedback</CardTitle>
+            <ThumbsUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-green-600">
               {stats.positiveVotes} / {stats.totalVotes}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {stats.totalVotes > 0 ? (((stats.positiveVotes || 0) / stats.totalVotes) * 100).toFixed(1) : 0}% positivos
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {positiveVoteRate}% positive votes
             </p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader>
-            <CardTitle>Com Micro-interações</CardTitle>
+            <CardTitle className="text-sm font-medium">User Engagement</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats.withMicroInteractions}</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Sem Micro-interações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{stats.withoutMicroInteractions}</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Suggestion usage</span>
+                <span className="font-bold">
+                  {stats.suggestionClicks + stats.typedMessages > 0
+                    ? ((stats.suggestionClicks / (stats.suggestionClicks + stats.typedMessages)) * 100).toFixed(1)
+                    : 0}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Manual typing</span>
+                <span className="font-bold">
+                  {stats.suggestionClicks + stats.typedMessages > 0
+                    ? ((stats.typedMessages / (stats.suggestionClicks + stats.typedMessages)) * 100).toFixed(1)
+                    : 0}%
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

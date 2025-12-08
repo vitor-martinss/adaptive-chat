@@ -7,7 +7,7 @@ import type {
 import { type ClassValue, clsx } from 'clsx';
 import { formatISO } from 'date-fns';
 import { twMerge } from 'tailwind-merge';
-import type { DBMessage, Document } from '@/lib/db/schema';
+// DBMessage and Document removed from TCC schema
 import { ChatSDKError, type ErrorCode } from './errors';
 import type { ChatMessage, ChatTools, CustomUIDataTypes } from './types';
 
@@ -72,7 +72,7 @@ export function getMostRecentUserMessage(messages: UIMessage[]) {
 }
 
 export function getDocumentTimestampByIndex(
-  documents: Document[],
+  documents: any[],
   index: number,
 ) {
   if (!documents) { return new Date(); }
@@ -100,7 +100,7 @@ export function sanitizeText(text: string) {
     .replace(/^\n\n/, ''); // Remove leading line breaks
 }
 
-export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {
+export function convertToUIMessages(messages: any[]): ChatMessage[] {
   return messages.map((message) => ({
     id: message.id,
     role: message.role as 'user' | 'assistant' | 'system',
