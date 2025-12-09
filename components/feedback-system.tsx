@@ -22,13 +22,15 @@ export function DetailedFeedback({
   onClose, 
   chatId, 
   trigger,
-  onSubmitSuccess 
+  onSubmitSuccess,
+  onSkip 
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   chatId: string;
   trigger: "end_session" | "milestone" | "exit_intent" | "idle";
   onSubmitSuccess?: () => void;
+  onSkip?: () => void;
 }) {
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [aspects, setAspects] = useState<string[]>([]);
@@ -143,7 +145,10 @@ export function DetailedFeedback({
 
           {/* Actions */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">
+            <Button variant="outline" onClick={() => {
+              onClose();
+              onSkip?.();
+            }} className="flex-1">
               Pular
             </Button>
             <Button 

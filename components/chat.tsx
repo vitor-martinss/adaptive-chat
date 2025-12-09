@@ -299,7 +299,31 @@ export function Chat({
           setShowDetailedFeedback(false);
           onFeedbackGiven?.();
         }}
-        onSubmitSuccess={() => {
+        onSkip={async () => {
+          sessionStorage.setItem(`session_ended_${id}`, "true");
+          await fetch("/api/interactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              sessionId: id, 
+              interactionType: "feedback_skipped",
+              content: "user_skipped_feedback",
+              metadata: { source: "feedback_flow" }
+            }),
+          }).catch(console.error);
+          window.location.replace("https://www.gatapretasapatilhas.com.br");
+        }}
+        onSubmitSuccess={async () => {
+          await fetch("/api/interactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              sessionId: id, 
+              interactionType: "post_feedback_redirect",
+              content: "auto_redirect_after_feedback",
+              metadata: { source: "feedback_flow" }
+            }),
+          }).catch(console.error);
           window.location.replace("https://www.gatapretasapatilhas.com.br");
         }}
         chatId={id}

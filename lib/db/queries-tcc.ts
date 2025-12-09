@@ -102,15 +102,50 @@ export async function getDashboardStats(filters?: {
       .where(whereClause);
 
     // Feedback metrics
-    let feedbackStats = { avgSat: 0, avgConf: 0 };
+    let feedbackStats = { avgSat: 0, avgConf: 0, completedSessions: 0, redirectedSessions: 0, skippedSessions: 0 };
     try {
+      const feedbackConditions = [];
+      if (filters?.dateFrom) feedbackConditions.push(`cs.created_at >= '${filters.dateFrom.toISOString()}'`);
+      if (filters?.dateTo) feedbackConditions.push(`cs.created_at <= '${filters.dateTo.toISOString()}'`);
+      if (filters?.withMicroInteractions !== undefined) feedbackConditions.push(`cs.with_micro_interactions = ${filters.withMicroInteractions}`);
+      
+      const feedbackWhere = feedbackConditions.length > 0 ? 'WHERE ' + feedbackConditions.join(' AND ') : '';
+      
       const result = await client.unsafe(`
         SELECT 
-          AVG(satisfaction::INTEGER) as "avgSat",
-          AVG(confidence::INTEGER) as "avgConf"
-        FROM chat_feedback
+          AVG(cf.satisfaction::INTEGER) as "avgSat",
+          AVG(cf.confidence::INTEGER) as "avgConf",
+          COUNT(DISTINCT cf.session_id) as "completedSessions"
+        FROM chat_sessions cs
+        LEFT JOIN chat_feedback cf ON cf.session_id = cs.id
+        ${feedbackWhere}
       `);
-      if (result[0]) feedbackStats = { avgSat: Number(result[0].avgSat) || 0, avgConf: Number(result[0].avgConf) || 0 };
+      
+      const redirectResult = await client.unsafe(`
+        SELECT 
+          COUNT(DISTINCT ui.session_id) as "redirectedSessions"
+        FROM chat_sessions cs
+        INNER JOIN user_interactions ui ON ui.session_id = cs.id AND ui.interaction_type = 'post_feedback_redirect'
+        ${feedbackWhere}
+      `);
+      
+      const skipResult = await client.unsafe(`
+        SELECT 
+          COUNT(DISTINCT ui.session_id) as "skippedSessions"
+        FROM chat_sessions cs
+        INNER JOIN user_interactions ui ON ui.session_id = cs.id AND ui.interaction_type = 'feedback_skipped'
+        ${feedbackWhere}
+      `);
+      
+      if (result[0]) {
+        feedbackStats = { 
+          avgSat: Number(result[0].avgSat) || 0, 
+          avgConf: Number(result[0].avgConf) || 0,
+          completedSessions: Number(result[0].completedSessions) || 0,
+          redirectedSessions: Number(redirectResult[0]?.redirectedSessions) || 0,
+          skippedSessions: Number(skipResult[0]?.skippedSessions) || 0
+        };
+      }
     } catch (e) {
       console.error('Feedback query error:', e);
     }
@@ -241,6 +276,10 @@ export async function getDashboardStats(filters?: {
       avgMessagesPerSession: parseFloat(avgMessages?.avg || "0"),
       avgSatisfaction: Number(feedbackStats.avgSat) || 0,
       avgConfidence: Number(feedbackStats.avgConf) || 0,
+      completedSessions: feedbackStats.completedSessions,
+      redirectedSessions: feedbackStats.redirectedSessions,
+      skippedSessions: feedbackStats.skippedSessions,
+      redirectRate: feedbackStats.completedSessions > 0 ? (feedbackStats.redirectedSessions / feedbackStats.completedSessions) * 100 : 0,
       totalVotes: totalVotesCount,
       upvotes: upvotesCount,
       downvotes: totalVotesCount - upvotesCount,

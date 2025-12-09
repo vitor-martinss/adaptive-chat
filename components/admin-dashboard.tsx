@@ -15,6 +15,10 @@ type DashboardStats = {
   avgMessagesPerSession: number;
   avgSatisfaction: number;
   avgConfidence: number;
+  completedSessions: number;
+  redirectedSessions: number;
+  skippedSessions: number;
+  redirectRate: number;
   totalVotes: number;
   upvotes: number;
   downvotes: number;
@@ -106,7 +110,7 @@ export function AdminDashboard() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="mb-6 text-3xl font-bold">TCC Analytics Dashboard</h1>
+      <h1 className="mb-6 text-3xl font-bold">Dashboard</h1>
 
       <div className="mb-6 flex gap-4">
         <Select value={dateFilter} onValueChange={setDateFilter}>
@@ -183,9 +187,27 @@ export function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Feedback Metrics</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between">
-              <span>Avg Satisfaction:</span>
-              <span className="text-2xl font-bold">{Number(stats.avgSatisfaction || 0).toFixed(1)}/5</span>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Avg Satisfaction:</span>
+                <span className="font-bold">{Number(stats.avgSatisfaction || 0).toFixed(1)}/5</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Completed Sessions:</span>
+                <span className="font-bold">{stats.completedSessions}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Redirected Sessions:</span>
+                <span className="font-bold">{stats.redirectedSessions}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Skipped Feedback:</span>
+                <span className="font-bold">{stats.skippedSessions}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Redirect Rate:</span>
+                <span className="font-bold">{stats.redirectRate.toFixed(1)}%</span>
+              </div>
             </div>
           </CardContent>
         </Card>
