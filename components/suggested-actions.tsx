@@ -13,9 +13,10 @@ type SuggestedActionsProps = {
   selectedVisibilityType: VisibilityType;
   suggestions?: string[];
   messagesLength?: number;
+  onInteraction?: () => void;
 };
 
-function PureSuggestedActions({ chatId, sendMessage, suggestions, messagesLength }: SuggestedActionsProps) {
+function PureSuggestedActions({ chatId, sendMessage, suggestions, messagesLength, onInteraction }: SuggestedActionsProps) {
   const [isHidden, setIsHidden] = useState(false);
   const [lastMessagesLength, setLastMessagesLength] = useState(messagesLength || 0);
   
@@ -56,6 +57,8 @@ function PureSuggestedActions({ chatId, sendMessage, suggestions, messagesLength
             onClick={(suggestion) => {
               setIsHidden(true);
               window.history.replaceState({}, "", `/chat/${chatId}`);
+              
+              onInteraction?.();
               
               fetch("/api/interactions", {
                 method: "POST",

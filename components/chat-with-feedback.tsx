@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { Chat } from "./chat";
-import { useFeedbackWarning } from "@/hooks/use-feedback-warning";
 import type { VisibilityType } from "./visibility-selector";
 
 export function ChatWithFeedback({ 
@@ -20,7 +19,6 @@ export function ChatWithFeedback({
   isReadonly: boolean;
   autoResume?: boolean;
 }) {
-  const { setHasGivenFeedback } = useFeedbackWarning();
 
   useEffect(() => {
     fetch("/api/sessions", {
@@ -38,7 +36,7 @@ export function ChatWithFeedback({
       initialVisibilityType={initialVisibilityType}
       isReadonly={isReadonly}
       autoResume={autoResume}
-      onFeedbackGiven={() => setHasGivenFeedback(true)}
+
     />
   );
 }

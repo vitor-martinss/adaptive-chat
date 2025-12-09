@@ -23,6 +23,7 @@ type MessagesProps = {
   selectedModelId: string;
   sendMessage?: UseChatHelpers<ChatMessage>["sendMessage"];
   onFeedbackGiven?: () => void;
+  onInteraction?: () => void;
 };
 
 function PureMessages({
@@ -36,6 +37,7 @@ function PureMessages({
   selectedModelId,
   sendMessage,
   onFeedbackGiven,
+  onInteraction,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -103,6 +105,7 @@ function PureMessages({
                     : undefined
                 }
                 onFeedbackGiven={onFeedbackGiven}
+                onInteraction={onInteraction}
               />
             );
           })}

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { ChatHeader } from "@/components/chat-header";
 import { DetailedFeedback } from "@/components/feedback-system";
+import { EndSessionModal } from "@/components/end-session-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -133,11 +134,22 @@ export function Chat({
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showDetailedFeedback, setShowDetailedFeedback] = useState(false);
+  const [showEndSessionModal, setShowEndSessionModal] = useState(false);
   const [feedbackTrigger, setFeedbackTrigger] = useState<"milestone" | "idle" | "end_session">("milestone");
   const [hasShownFeedback, setHasShownFeedback] = useState(false);
+  const [interactionCount, setInteractionCount] = useState(0);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const lastActivityRef = useRef(Date.now());
   const idleTimerRef = useRef<NodeJS.Timeout>();
   const lastMessageCountRef = useRef(0);
+
+  // Redirect if session was already ended
+  useEffect(() => {
+    const wasEnded = sessionStorage.getItem(`session_ended_${id}`);
+    if (wasEnded === "true") {
+      window.location.replace("/");
+    }
+  }, [id]);
 
   // Idle detection - 15s inactivity
   useEffect(() => {
@@ -145,12 +157,16 @@ export function Chat({
       lastActivityRef.current = Date.now();
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       
-      if (messages.length >= 3 && !showDetailedFeedback && !hasShownFeedback) {
+      if (interactionCount >= 1 && !showEndSessionModal && !sessionEnded) {
         idleTimerRef.current = setTimeout(() => {
           setFeedbackTrigger("idle");
-          setShowDetailedFeedback(true);
-          setHasShownFeedback(true);
-        }, 10000);
+          setShowEndSessionModal(true);
+          fetch("/api/interactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: id, interactionType: "end_modal_shown" }),
+          }).catch(console.error);
+        }, 15000);
       }
     };
 
@@ -165,15 +181,55 @@ export function Chat({
       window.removeEventListener('click', resetIdle);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [messages.length, showDetailedFeedback, hasShownFeedback]);
+  }, [interactionCount, showEndSessionModal, sessionEnded, id]);
 
-  // Reset feedback flag when user continues chatting after feedback
+  // Check interaction count for end-session modal (wait for AI response)
   useEffect(() => {
-    if (hasShownFeedback && messages.length > lastMessageCountRef.current + 4) {
-      setHasShownFeedback(false);
+    const lastMessage = messages[messages.length - 1];
+    const isAIResponding = status === "streaming";
+    
+    if (interactionCount > 0 && interactionCount % 4 === 0 && !showEndSessionModal && !sessionEnded && !isAIResponding && lastMessage?.role === "assistant") {
+      setShowEndSessionModal(true);
+      fetch("/api/interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: id, interactionType: "end_modal_shown" }),
+      }).catch(console.error);
     }
-    lastMessageCountRef.current = messages.length;
-  }, [messages.length, hasShownFeedback]);
+  }, [interactionCount, showEndSessionModal, sessionEnded, id, messages, status]);
+
+  const handleInteraction = () => {
+    if (!sessionEnded) {
+      setInteractionCount(prev => prev + 1);
+    }
+  };
+
+  const handleSessionSolved = async () => {
+    setShowEndSessionModal(false);
+    setSessionEnded(true);
+    sessionStorage.setItem(`session_ended_${id}`, "true");
+    
+    await fetch("/api/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: id, interactionType: "end_modal_answer_yes" }),
+    }).catch(console.error);
+    
+    setShowDetailedFeedback(true);
+  };
+
+  const handleSessionNotSolved = async () => {
+    setShowEndSessionModal(false);
+    setInteractionCount(0);
+    
+    await fetch("/api/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: id, interactionType: "end_modal_answer_no" }),
+    }).catch(console.error);
+  };
+
+
 
   // Load votes
   const { data: votes } = useSWR<Vote[]>(
@@ -202,6 +258,7 @@ export function Chat({
           status={status}
           votes={votes}
           onFeedbackGiven={onFeedbackGiven}
+          onInteraction={handleInteraction}
         />
 
         <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
@@ -214,7 +271,10 @@ export function Chat({
               onModelChange={setCurrentModelId}
               selectedModelId={currentModelId}
               selectedVisibilityType={initialVisibilityType}
-              sendMessage={sendMessage}
+              sendMessage={(message) => {
+                handleInteraction();
+                return sendMessage(message);
+              }}
               setAttachments={setAttachments}
               setInput={setInput}
               setMessages={setMessages}
@@ -227,11 +287,20 @@ export function Chat({
 
       {/* Artifact component removed for simplified chat */}
 
+      <EndSessionModal
+        isOpen={showEndSessionModal}
+        onSolved={handleSessionSolved}
+        onNotSolved={handleSessionNotSolved}
+      />
+
       <DetailedFeedback
         isOpen={showDetailedFeedback}
         onClose={() => {
           setShowDetailedFeedback(false);
           onFeedbackGiven?.();
+        }}
+        onSubmitSuccess={() => {
+          window.location.replace("https://www.gatapretasapatilhas.com.br");
         }}
         chatId={id}
         trigger={feedbackTrigger}

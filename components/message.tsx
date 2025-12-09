@@ -125,6 +125,7 @@ const PurePreviewMessage = ({
   isLastAssistantMessage,
   messagesLength,
   onFeedbackGiven,
+  onInteraction,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -138,6 +139,7 @@ const PurePreviewMessage = ({
   isLastAssistantMessage?: boolean;
   messagesLength?: number;
   onFeedbackGiven?: () => void;
+  onInteraction?: () => void;
 }) => {
 
 
@@ -292,6 +294,7 @@ const PurePreviewMessage = ({
                     ?.map(part => part.text)
                     ?.join(' ') || ''
                 )}
+                onInteraction={onInteraction}
               />
             </div>
           )}

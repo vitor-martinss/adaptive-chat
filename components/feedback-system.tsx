@@ -21,12 +21,14 @@ export function DetailedFeedback({
   isOpen, 
   onClose, 
   chatId, 
-  trigger 
+  trigger,
+  onSubmitSuccess 
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   chatId: string;
   trigger: "end_session" | "milestone" | "exit_intent" | "idle";
+  onSubmitSuccess?: () => void;
 }) {
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [aspects, setAspects] = useState<string[]>([]);
@@ -65,9 +67,9 @@ export function DetailedFeedback({
       
       toast.success("Obrigado pelo seu feedback detalhado!");
       onClose();
+      onSubmitSuccess?.();
     } catch (error) {
       toast.error("Falha ao enviar feedback");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -164,22 +166,7 @@ export function useFeedbackTrigger(chatId: string) {
   const [messageCount, setMessageCount] = useState(0);
   const [lastFeedbackTime, setLastFeedbackTime] = useState<number>(0);
 
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      const now = Date.now();
-      if (messageCount > 3 && now - lastFeedbackTime > 300000) {
-        setShowDetailed(true);
-      }
-      
-      if (messageCount > 0) {
-        const blob = new Blob([JSON.stringify({ sessionId: chatId, abandoned: true })], { type: 'application/json' });
-        navigator.sendBeacon("/api/sessions/end", blob);
-      }
-    };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [messageCount, lastFeedbackTime, chatId]);
 
   const incrementMessage = () => {
     setMessageCount(prev => {
