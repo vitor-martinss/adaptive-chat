@@ -149,6 +149,82 @@ export async function getDashboardStats(filters?: {
       .groupBy(sql`DATE(chat_sessions.created_at)`, chatSessions.withMicroInteractions)
       .orderBy(sql`DATE(chat_sessions.created_at)`);
 
+    // Daily breakdown with all metrics
+    let dailyQuery = `
+      SELECT 
+        DATE(cs.created_at) as date,
+        COUNT(CASE WHEN cs.with_micro_interactions = true THEN 1 END) as sessions_with,
+        COUNT(CASE WHEN cs.with_micro_interactions = false THEN 1 END) as sessions_without,
+        COUNT(*) as total_sessions,
+        COUNT(cm.id) as total_messages,
+        COALESCE(AVG(EXTRACT(EPOCH FROM (cs.ended_at - cs.created_at))), 0) as avg_duration_sec,
+        COALESCE(AVG((SELECT COUNT(*) FROM chat_messages WHERE session_id = cs.id)), 0) as avg_messages,
+        COALESCE(SUM(CASE WHEN cv.is_upvoted = true THEN 1 ELSE 0 END)::float / NULLIF(COUNT(DISTINCT cv.message_id), 0), 0) as upvote_ratio,
+        COALESCE(SUM(CASE WHEN ui.interaction_type = 'suggestion_click' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(DISTINCT ui.id), 0), 0) as suggestion_ratio,
+        COALESCE(AVG(cf.satisfaction::INTEGER), 0) as avg_satisfaction,
+        COALESCE(AVG(cf.confidence::INTEGER), 0) as avg_confidence
+      FROM chat_sessions cs
+      LEFT JOIN chat_messages cm ON cm.session_id = cs.id
+      LEFT JOIN chat_votes cv ON cv.chat_id = cs.id
+      LEFT JOIN user_interactions ui ON ui.session_id = cs.id
+      LEFT JOIN chat_feedback cf ON cf.session_id = cs.id
+    `;
+    
+    const whereParts = [];
+    if (filters?.dateFrom) whereParts.push(`cs.created_at >= '${filters.dateFrom.toISOString()}'`);
+    if (filters?.dateTo) whereParts.push(`cs.created_at <= '${filters.dateTo.toISOString()}'`);
+    if (filters?.withMicroInteractions !== undefined) whereParts.push(`cs.with_micro_interactions = ${filters.withMicroInteractions}`);
+    
+    if (whereParts.length > 0) {
+      dailyQuery += ' WHERE ' + whereParts.join(' AND ');
+    }
+    
+    dailyQuery += ' GROUP BY DATE(cs.created_at) ORDER BY DATE(cs.created_at)';
+    
+    const dailyBreakdownRaw = await client.unsafe(dailyQuery);
+
+    const dailyBreakdown = dailyBreakdownRaw.map((row: any) => ({
+      date: row.date,
+      sessionsWith: Number(row.sessions_with) || 0,
+      sessionsWithout: Number(row.sessions_without) || 0,
+      totalSessions: Number(row.total_sessions) || 0,
+      totalMessages: Number(row.total_messages) || 0,
+      avgMessagesPerSession: Number(row.avg_messages) || 0,
+      avgSessionDurationSec: Number(row.avg_duration_sec) || 0,
+      upvoteRatio: Number(row.upvote_ratio) || 0,
+      suggestionRatio: Number(row.suggestion_ratio) || 0,
+      avgSatisfaction: Number(row.avg_satisfaction) || 0,
+      avgConfidence: Number(row.avg_confidence) || 0,
+    }));
+
+    // Session duration metrics
+    const endedConditions = [];
+    if (whereClause) endedConditions.push(whereClause);
+    endedConditions.push(sql`ended_at IS NOT NULL`);
+    
+    const durationQuery = await db
+      .select({
+        avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)`,
+        medianMs: sql<number>`PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)`,
+      })
+      .from(chatSessions)
+      .where(and(...endedConditions));
+
+    const [durationWithMicro] = await db
+      .select({ avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)` })
+      .from(chatSessions)
+      .where(and(...endedConditions, eq(chatSessions.withMicroInteractions, true)));
+
+    const [durationWithoutMicro] = await db
+      .select({ avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)` })
+      .from(chatSessions)
+      .where(and(...endedConditions, eq(chatSessions.withMicroInteractions, false)));
+
+    const [durationAbandoned] = await db
+      .select({ avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)` })
+      .from(chatSessions)
+      .where(and(...endedConditions, eq(chatSessions.abandoned, true)));
+
     const total = totalSessions?.count || 0;
     const abandonedCount = abandoned?.count || 0;
     const totalVotesCount = totalVotes?.count || 0;
@@ -173,6 +249,14 @@ export async function getDashboardStats(filters?: {
       typedMessages: typedCount,
       suggestionRatio: suggestionCount + typedCount > 0 ? (suggestionCount / (suggestionCount + typedCount)) * 100 : 0,
       sessionsPerDay,
+      dailyBreakdown,
+      sessionDuration: {
+        avgMs: Number(durationQuery[0]?.avgMs) || 0,
+        medianMs: Number(durationQuery[0]?.medianMs) || 0,
+        avgWithMicroMs: Number(durationWithMicro?.avgMs) || 0,
+        avgWithoutMicroMs: Number(durationWithoutMicro?.avgMs) || 0,
+        avgAbandonedMs: Number(durationAbandoned?.avgMs) || 0,
+      },
     };
   } catch (error) {
     console.error("Dashboard stats error:", error);

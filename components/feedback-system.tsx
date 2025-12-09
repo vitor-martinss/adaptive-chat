@@ -62,6 +62,7 @@ export function DetailedFeedback({
           trigger,
         }),
       });
+      
       toast.success("Obrigado pelo seu feedback detalhado!");
       onClose();
     } catch (error) {
@@ -164,17 +165,21 @@ export function useFeedbackTrigger(chatId: string) {
   const [lastFeedbackTime, setLastFeedbackTime] = useState<number>(0);
 
   useEffect(() => {
-    // Exit intent detection
     const handleBeforeUnload = () => {
       const now = Date.now();
-      if (messageCount > 3 && now - lastFeedbackTime > 300000) { // 5 minutes
+      if (messageCount > 3 && now - lastFeedbackTime > 300000) {
         setShowDetailed(true);
+      }
+      
+      if (messageCount > 0) {
+        const blob = new Blob([JSON.stringify({ sessionId: chatId, abandoned: true })], { type: 'application/json' });
+        navigator.sendBeacon("/api/sessions/end", blob);
       }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [messageCount, lastFeedbackTime]);
+  }, [messageCount, lastFeedbackTime, chatId]);
 
   const incrementMessage = () => {
     setMessageCount(prev => {

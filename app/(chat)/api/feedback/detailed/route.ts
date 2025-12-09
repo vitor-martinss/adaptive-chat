@@ -33,6 +33,14 @@ export async function POST(request: NextRequest) {
       comment: comment || null,
     });
 
+    await db.update(chatSessions)
+      .set({
+        endedAt: new Date(),
+        abandoned: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(chatSessions.id, id));
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Feedback error:", error);

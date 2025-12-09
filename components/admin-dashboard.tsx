@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type DashboardStats = {
   totalSessions: number;
@@ -21,7 +23,44 @@ type DashboardStats = {
   typedMessages: number;
   suggestionRatio: number;
   sessionsPerDay: Array<{ date: string; withMicro: boolean; count: number }>;
+  dailyBreakdown: Array<{
+    date: string;
+    sessionsWith: number;
+    sessionsWithout: number;
+    totalSessions: number;
+    totalMessages: number;
+    avgMessagesPerSession: number;
+    avgSessionDurationSec: number;
+    upvoteRatio: number;
+    suggestionRatio: number;
+    avgSatisfaction: number;
+    avgConfidence: number;
+  }>;
+  sessionDuration: {
+    avgMs: number;
+    medianMs: number;
+    avgWithMicroMs: number;
+    avgWithoutMicroMs: number;
+    avgAbandonedMs: number;
+  };
 };
+
+function formatDuration(ms: number): string {
+  if (ms === 0) return "0s";
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes === 0) return `${remainingSeconds}s`;
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+function formatDurationSec(sec: number): string {
+  if (sec === 0) return "0s";
+  const minutes = Math.floor(sec / 60);
+  const remainingSeconds = Math.floor(sec % 60);
+  if (minutes === 0) return `${remainingSeconds}s`;
+  return `${minutes}m ${remainingSeconds}s`;
+}
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -51,6 +90,8 @@ export function AdminDashboard() {
 
       const res = await fetch(`/api/dashboard/stats?${params}`);
       const data = await res.json();
+      console.log('Dashboard stats:', data);
+      console.log('Session duration:', data.sessionDuration);
       setStats(data);
     } catch (error) {
       console.error("Failed to fetch stats:", error);
@@ -136,21 +177,15 @@ export function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Feedback Metrics</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Avg Satisfaction:</span>
-                <span className="font-bold">{Number(stats.avgSatisfaction || 0).toFixed(1)}/5</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Avg Confidence:</span>
-                <span className="font-bold">{Number(stats.avgConfidence || 0).toFixed(1)}/5</span>
-              </div>
+            <div className="flex justify-between">
+              <span>Avg Satisfaction:</span>
+              <span className="text-2xl font-bold">{Number(stats.avgSatisfaction || 0).toFixed(1)}/5</span>
             </div>
           </CardContent>
         </Card>
@@ -176,6 +211,34 @@ export function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Session Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Avg Duration:</span>
+                <span className="font-bold">{formatDuration(stats.sessionDuration.avgMs)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>With Micro:</span>
+                <span>{formatDuration(stats.sessionDuration.avgWithMicroMs)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Without Micro:</span>
+                <span>{formatDuration(stats.sessionDuration.avgWithoutMicroMs)}</span>
+              </div>
+              {stats.sessionDuration.avgAbandonedMs > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Avg Drop-Off:</span>
+                  <span>{formatDuration(stats.sessionDuration.avgAbandonedMs)}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -183,20 +246,75 @@ export function AdminDashboard() {
           <CardTitle className="text-sm font-medium">Sessions Per Day</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {stats.sessionsPerDay.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data available</p>
-            ) : (
-              stats.sessionsPerDay.map((day, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span>{day.date}</span>
-                  <span>
-                    {day.withMicro ? "With Micro" : "Without Micro"}: {day.count}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+          {stats.dailyBreakdown.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No data available</p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={stats.dailyBreakdown}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.[0]) return null;
+                      const data = payload[0].payload;
+                      return (
+                        <div className="rounded-lg border bg-background p-3 shadow-sm">
+                          <div className="font-medium mb-2">{data.date}</div>
+                          <div className="space-y-1 text-xs">
+                            <div>Total Sessions: {data.totalSessions}</div>
+                            <div>With Micro: {data.sessionsWith}</div>
+                            <div>Without Micro: {data.sessionsWithout}</div>
+                            <div>Total Messages: {data.totalMessages}</div>
+                            <div>Avg Msg/Session: {data.avgMessagesPerSession.toFixed(1)}</div>
+                            <div>Avg Duration: {formatDurationSec(data.avgSessionDurationSec)}</div>
+                            <div>Upvote Ratio: {(data.upvoteRatio * 100).toFixed(1)}%</div>
+                            <div>Suggestion Ratio: {(data.suggestionRatio * 100).toFixed(1)}%</div>
+                            <div>Satisfaction: {data.avgSatisfaction.toFixed(1)}/5</div>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="sessionsWith" stroke="#8884d8" name="With Micro" />
+                  <Line type="monotone" dataKey="sessionsWithout" stroke="#82ca9d" name="Without Micro" />
+                </LineChart>
+              </ResponsiveContainer>
+
+              <div className="mt-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">With Micro</TableHead>
+                      <TableHead className="text-right">Without Micro</TableHead>
+                      <TableHead className="text-right">Avg Duration</TableHead>
+                      <TableHead className="text-right">Avg Msg/Session</TableHead>
+                      <TableHead className="text-right">Upvote %</TableHead>
+                      <TableHead className="text-right">Suggestion %</TableHead>
+                      <TableHead className="text-right">Satisfaction</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.dailyBreakdown.map((day, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{day.date}</TableCell>
+                        <TableCell className="text-right">{day.sessionsWith}</TableCell>
+                        <TableCell className="text-right">{day.sessionsWithout}</TableCell>
+                        <TableCell className="text-right">{formatDurationSec(day.avgSessionDurationSec)}</TableCell>
+                        <TableCell className="text-right">{day.avgMessagesPerSession.toFixed(1)}</TableCell>
+                        <TableCell className="text-right">{(day.upvoteRatio * 100).toFixed(1)}%</TableCell>
+                        <TableCell className="text-right">{(day.suggestionRatio * 100).toFixed(1)}%</TableCell>
+                        <TableCell className="text-right">{day.avgSatisfaction.toFixed(1)}/5</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

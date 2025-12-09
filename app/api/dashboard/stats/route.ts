@@ -35,6 +35,14 @@ export async function GET(request: Request) {
         typedMessages: 0,
         suggestionRatio: 0,
         sessionsPerDay: [],
+        dailyBreakdown: [],
+        sessionDuration: {
+          avgMs: 0,
+          medianMs: 0,
+          avgWithMicroMs: 0,
+          avgWithoutMicroMs: 0,
+          avgAbandonedMs: 0,
+        },
       },
       { status: 200 }
     );
