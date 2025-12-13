@@ -196,20 +196,38 @@ About the origin of user's request:
 - country: ${requestHints.country}
 `;
 
+const microInteractionsPrompt = `
+**MICRO-INTERAÇÕES ATIVADAS**
+- Use emojis quando apropriado para tornar a comunicação mais calorosa (ex: 😊 para cumprimentos, 👉 para links importantes, 📦 para entregas, 💰 para preços, 👠 para produtos)
+- Seja mais expressivo e caloroso nas respostas
+- Use linguagem mais próxima e acolhedora
+- Adicione emojis que complementem a informação de forma natural
+`;
+
+const standardPrompt = `
+**MODO PADRÃO**
+- Mantenha respostas diretas e objetivas
+- Evite emojis desnecessários
+- Foque na eficiência da informação
+`;
+
 export const systemPrompt = ({
   selectedChatModel,
   requestHints,
+  withMicroInteractions = false,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
+  withMicroInteractions?: boolean;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
+  const interactionPrompt = withMicroInteractions ? microInteractionsPrompt : standardPrompt;
 
   if (selectedChatModel === "chat-model-artifacts") {
-    return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+    return `${regularPrompt}\n\n${interactionPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
   }
 
-  return `${regularPrompt}\n\n${requestPrompt}`;
+  return `${regularPrompt}\n\n${interactionPrompt}\n\n${requestPrompt}`;
 };
 
 

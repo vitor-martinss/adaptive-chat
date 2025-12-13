@@ -51,9 +51,17 @@ function PureSuggestedActions({ chatId, sendMessage, suggestions, messagesLength
           initial={{ opacity: 0, y: 20 }}
           key={suggestedAction}
           transition={{ delay: 0.05 * index }}
+          whileHover={{ 
+            scale: process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" ? 1.02 : 1,
+            transition: { duration: 0.2 }
+          }}
+          whileTap={{ 
+            scale: process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" ? 0.98 : 1,
+            transition: { duration: 0.1 }
+          }}
         >
           <Suggestion
-            className="h-auto w-full whitespace-normal p-3 text-left"
+            className="h-auto w-full whitespace-normal p-3 text-left transition-all duration-200 hover:bg-muted/50"
             onClick={(suggestion) => {
               setIsHidden(true);
               window.history.replaceState({}, "", `/chat/${chatId}`);

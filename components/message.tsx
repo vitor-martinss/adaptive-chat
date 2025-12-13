@@ -23,6 +23,9 @@ import { SuggestedActions } from "./suggested-actions";
 import { MessageReasoning } from "./message-reasoning";
 import { PreviewAttachment } from "./preview-attachment";
 import { Weather } from "./weather";
+import { EnhancedThinking } from "./enhanced-thinking";
+import { EnhancedResponse } from "./enhanced-response";
+import { enhanceWithEmojis } from "@/lib/ai/emoji-enhancer";
 
 // Generate contextual suggestions based on AI response
 function generateContextualSuggestions(messageText: string): string[] {
@@ -217,6 +220,8 @@ const PurePreviewMessage = ({
             }
 
             if (type === "text") {
+              const withMicroInteractions = process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true";
+              
               return (
                 <div key={key}>
                   <MessageContent
@@ -233,7 +238,18 @@ const PurePreviewMessage = ({
                         : undefined
                     }
                   >
-                    <Response>{sanitizeText(part.text)}</Response>
+                    {message.role === "assistant" ? (
+                      <EnhancedResponse 
+                        isStreaming={isLoading}
+                        withMicroInteractions={withMicroInteractions}
+                      >
+                        {sanitizeText(part.text)}
+                      </EnhancedResponse>
+                    ) : (
+                      <Response>
+                        {enhanceWithEmojis(sanitizeText(part.text), withMicroInteractions)}
+                      </Response>
+                    )}
                   </MessageContent>
                 </div>
               );
@@ -327,31 +343,14 @@ export const PreviewMessage = memo(
   }
 );
 
-export const ThinkingMessage = () => {
-  const role = "assistant";
-
+export const ThinkingMessage = ({ userMessage }: { userMessage?: string }) => {
+  const withMicroInteractions = process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true";
+  
   return (
-    <motion.div
-      animate={{ opacity: 1 }}
-      className="group/message w-full"
-      data-role={role}
-      data-testid="message-assistant-loading"
-      exit={{ opacity: 0, transition: { duration: 0.5 } }}
-      initial={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      <div className="flex items-start justify-start gap-3">
-        <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
-          <SparklesIcon size={14} />
-        </div>
-
-        <div className="flex w-full flex-col gap-2 md:gap-4">
-          <div className="p-0 text-muted-foreground text-sm">
-            Thinking...
-          </div>
-        </div>
-      </div>
-    </motion.div>
+    <EnhancedThinking 
+      userMessage={userMessage} 
+      withMicroInteractions={withMicroInteractions}
+    />
   );
 };
 

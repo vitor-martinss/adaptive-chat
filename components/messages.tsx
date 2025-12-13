@@ -111,7 +111,12 @@ function PureMessages({
           })}
 
           <AnimatePresence mode="wait">
-            {status === "submitted" && <ThinkingMessage key="thinking" />}
+            {status === "submitted" && (
+              <ThinkingMessage 
+                key="thinking" 
+                userMessage={messages[messages.length - 1]?.parts?.find(p => p.type === 'text')?.text}
+              />
+            )}
           </AnimatePresence>
 
           <div

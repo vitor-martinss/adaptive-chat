@@ -4,6 +4,7 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import { Trigger } from "@radix-ui/react-select";
 import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
+import { motion } from "framer-motion";
 import {
   type ChangeEvent,
   type Dispatch,
@@ -46,6 +47,7 @@ import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "./suggested-actions";
 import { Button } from "./ui/button";
 import type { VisibilityType } from "./visibility-selector";
+import { EnhancedInput } from "./enhanced-input";
 
 function PureMultimodalInput({
   chatId,
@@ -211,7 +213,7 @@ function PureMultimodalInput({
             maxHeight={200}
             minHeight={44}
             onChange={handleInput}
-            placeholder="Digite sua mensagem..."
+            placeholder={process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" ? undefined : "Digite sua mensagem..."}
             ref={textareaRef}
             rows={1}
             value={input}
@@ -227,14 +229,25 @@ function PureMultimodalInput({
           {status === "submitted" ? (
             <StopButton setMessages={setMessages} stop={stop} />
           ) : (
-            <PromptInputSubmit
-              className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
-              disabled={!input.trim()}
-              status={status}
-              data-testid="send-button"
+            <motion.div
+              whileHover={{ 
+                scale: process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" ? 1.05 : 1,
+                transition: { duration: 0.2 }
+              }}
+              whileTap={{ 
+                scale: process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" ? 0.95 : 1,
+                transition: { duration: 0.1 }
+              }}
             >
-              <ArrowUpIcon size={14} />
-            </PromptInputSubmit>
+              <PromptInputSubmit
+                className="size-8 rounded-full bg-primary text-primary-foreground transition-all duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground hover:shadow-lg"
+                disabled={!input.trim()}
+                status={status}
+                data-testid="send-button"
+              >
+                <ArrowUpIcon size={14} />
+              </PromptInputSubmit>
+            </motion.div>
           )}
         </PromptInputToolbar>
       </PromptInput>
@@ -360,17 +373,28 @@ function PureStopButton({
   setMessages: UseChatHelpers<ChatMessage>["setMessages"];
 }) {
   return (
-    <Button
-      className="size-7 rounded-full bg-foreground p-1 text-background transition-colors duration-200 hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground"
-      data-testid="stop-button"
-      onClick={(event) => {
-        event.preventDefault();
-        stop();
-        setMessages((messages) => messages);
+    <motion.div
+      whileHover={{ 
+        scale: process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" ? 1.05 : 1,
+        transition: { duration: 0.2 }
+      }}
+      whileTap={{ 
+        scale: process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true" ? 0.95 : 1,
+        transition: { duration: 0.1 }
       }}
     >
-      <StopIcon size={14} />
-    </Button>
+      <Button
+        className="size-7 rounded-full bg-foreground p-1 text-background transition-all duration-200 hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground hover:shadow-lg"
+        data-testid="stop-button"
+        onClick={(event) => {
+          event.preventDefault();
+          stop();
+          setMessages((messages) => messages);
+        }}
+      >
+        <StopIcon size={14} />
+      </Button>
+    </motion.div>
   );
 }
 
