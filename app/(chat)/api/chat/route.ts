@@ -12,8 +12,8 @@ import { type PostRequestBody, postRequestBodySchema } from "./schema";
 import { ChatSDKError } from "@/lib/errors";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { chatMessages } from "@/lib/db/schema";
-import { ensureSessionExists } from "@/lib/db/queries-tcc";
+import { eq } from "drizzle-orm";
+import { chatMessages, chatSessions } from "@/lib/db/schema";
 
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
@@ -27,7 +27,10 @@ type ChatSessionRequest = {
 
 async function saveMessage(sessionId: string, role: "user" | "assistant", content: string) {
   try {
-    await ensureSessionExists(sessionId);
+    const [existing] = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
+    if (!existing) {
+      await db.insert(chatSessions).values({ id: sessionId });
+    }
     await db.insert(chatMessages).values({ sessionId, role, content });
   } catch (e) {
     console.error("Failed to save message:", e);

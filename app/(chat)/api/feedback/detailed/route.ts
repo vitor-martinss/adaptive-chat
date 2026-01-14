@@ -3,7 +3,6 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq } from "drizzle-orm";
 import { chatFeedback, chatSessions } from "@/lib/db/schema";
-import { ensureSessionExists } from "@/lib/db/queries-tcc";
 
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
@@ -18,7 +17,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    await ensureSessionExists(id);
+    // Ensure session exists
+    const [existing] = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, id)).limit(1);
+    if (!existing) {
+      await db.insert(chatSessions).values({ id });
+    }
 
     await db.insert(chatFeedback).values({
       sessionId: id,
