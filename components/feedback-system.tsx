@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { classifyTopic, getCaseConfig, shouldTriggerFeedback, type CaseType } from "@/lib/case-classification";
 
 // Simple feedback text
 export function FeedbackText() {
@@ -23,14 +24,16 @@ export function DetailedFeedback({
   chatId, 
   trigger,
   onSubmitSuccess,
-  onSkip 
+  onSkip,
+  caseType 
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   chatId: string;
-  trigger: "end_session" | "milestone" | "exit_intent" | "idle";
+  trigger: "end_session" | "milestone" | "exit_intent" | "idle" | "case_specific";
   onSubmitSuccess?: () => void;
   onSkip?: () => void;
+  caseType?: CaseType;
 }) {
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [aspects, setAspects] = useState<string[]>([]);
@@ -64,6 +67,7 @@ export function DetailedFeedback({
           aspects,
           comment,
           trigger,
+          caseType,
         }),
       });
       
@@ -78,11 +82,18 @@ export function DetailedFeedback({
 
   if (!isOpen) return null;
 
+  const caseConfig = caseType ? getCaseConfig(caseType) : null;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <Card className="w-full max-w-md mx-4">
         <CardHeader>
           <CardTitle>Como foi sua experiência?</CardTitle>
+          {caseConfig && (
+            <p className="text-sm text-muted-foreground">
+              Categoria: {caseConfig.name}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Satisfaction Rating */}
@@ -165,22 +176,38 @@ export function DetailedFeedback({
   );
 }
 
-// Smart feedback trigger hook
+// Smart feedback trigger hook with case-specific logic
 export function useFeedbackTrigger(chatId: string) {
   const [showDetailed, setShowDetailed] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [lastFeedbackTime, setLastFeedbackTime] = useState<number>(0);
+  const [currentCaseType, setCurrentCaseType] = useState<CaseType>("geral");
+  const [sessionStartTime] = useState<number>(Date.now());
 
-
-
-  const incrementMessage = () => {
+  const incrementMessage = (message?: string) => {
     setMessageCount(prev => {
       const newCount = prev + 1;
-      // Trigger feedback every 10 messages
-      if (newCount % 10 === 0 && Date.now() - lastFeedbackTime > 600000) { // 10 minutes
+      
+      // Classificar tópico se mensagem fornecida
+      if (message) {
+        const detectedCase = classifyTopic(message);
+        setCurrentCaseType(detectedCase);
+      }
+      
+      // Verificar se deve disparar feedback baseado no caso
+      const sessionDurationSec = (Date.now() - sessionStartTime) / 1000;
+      const shouldTrigger = shouldTriggerFeedback(
+        currentCaseType,
+        newCount,
+        sessionDurationSec,
+        message
+      );
+      
+      if (shouldTrigger && Date.now() - lastFeedbackTime > 600000) { // 10 minutes cooldown
         setShowDetailed(true);
         setLastFeedbackTime(Date.now());
       }
+      
       return newCount;
     });
   };
@@ -196,5 +223,6 @@ export function useFeedbackTrigger(chatId: string) {
     setShowDetailed,
     incrementMessage,
     triggerEndSession,
+    currentCaseType,
   };
 }

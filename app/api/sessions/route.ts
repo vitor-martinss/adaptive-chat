@@ -8,7 +8,7 @@ const db = drizzle(client);
 
 export async function POST(request: Request) {
   try {
-    const { sessionId, withMicroInteractions } = await request.json();
+    const { sessionId, userId, withMicroInteractions } = await request.json();
 
     if (!sessionId) {
       return NextResponse.json(
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
 
     await db.insert(chatSessions).values({
       id: sessionId,
+      userId,
       withMicroInteractions: withMicroInteractions ?? (process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true"),
     }).onConflictDoNothing();
 

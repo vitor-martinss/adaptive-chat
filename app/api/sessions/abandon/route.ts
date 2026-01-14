@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
-    const { sessionId, resolved } = await request.json();
+    const { sessionId } = await request.json();
 
     if (!sessionId) {
       return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
@@ -14,15 +14,15 @@ export async function POST(request: Request) {
     await withTransaction(async (tx) => {
       await tx.update(chatSessions)
         .set({ 
-          endedAt: new Date(),
-          abandoned: !resolved
+          abandoned: true, 
+          endedAt: new Date() 
         })
         .where(eq(chatSessions.id, sessionId));
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("End session error:", error);
-    return NextResponse.json({ error: "Failed to end session" }, { status: 500 });
+    console.error("Abandon session error:", error);
+    return NextResponse.json({ error: "Failed to mark as abandoned" }, { status: 500 });
   }
 }

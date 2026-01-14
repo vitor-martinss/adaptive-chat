@@ -13,33 +13,47 @@ import {
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
 
+import "server-only";
+import { eq } from "drizzle-orm";
+import { chatSessions, userInteractions } from "./schema";
+import { withTransaction } from "./transaction";
+
 export async function trackUserInteraction({
   sessionId,
   interactionType,
   content,
   metadata,
+  topic,
 }: {
   sessionId: string;
   interactionType: string;
   content?: string;
   metadata?: Record<string, any>;
+  topic?: string;
 }) {
-  try {
-    // Ensure session exists first
-    const [session] = await db.select().from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
+  return withTransaction(async (tx) => {
+    // Ensure session exists
+    const [session] = await tx.select().from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
     if (!session) {
-      await db.insert(chatSessions).values({ id: sessionId });
+      await tx.insert(chatSessions).values({ id: sessionId });
     }
     
-    await db.insert(userInteractions).values({
+    await tx.insert(userInteractions).values({
       sessionId,
       interactionType,
       content,
       metadata,
+      topic,
     });
-  } catch (error) {
-    console.error("Failed to track interaction:", error);
-  }
+  });
+}
+
+export async function updateSessionTopic(sessionId: string, topic: string, caseType: string) {
+  return withTransaction(async (tx) => {
+    await tx.update(chatSessions)
+      .set({ topic, caseType })
+      .where(eq(chatSessions.id, sessionId));
+  });
 }
 
 export async function getDashboardStats(filters?: {
@@ -81,12 +95,21 @@ export async function getDashboardStats(filters?: {
       .from(chatSessions)
       .where(and(...withoutMicroConditions));
 
-    // Abandoned sessions
+    // Abandoned sessions (only count those explicitly marked)
     const abandonedConditions = whereClause ? [whereClause, eq(chatSessions.abandoned, true)] : [eq(chatSessions.abandoned, true)];
     const [abandoned] = await db
       .select({ count: count() })
       .from(chatSessions)
       .where(and(...abandonedConditions));
+
+    // Sessions without proper ending (also considered abandoned)
+    const unfinishedConditions = whereClause ? 
+      [whereClause, sql`ended_at IS NULL AND created_at < NOW() - INTERVAL '1 hour'`] : 
+      [sql`ended_at IS NULL AND created_at < NOW() - INTERVAL '1 hour'`];
+    const [unfinished] = await db
+      .select({ count: count() })
+      .from(chatSessions)
+      .where(and(...unfinishedConditions));
 
     // Total messages
     const [totalMessages] = await db
@@ -261,14 +284,64 @@ export async function getDashboardStats(filters?: {
       .where(and(...endedConditions, eq(chatSessions.abandoned, true)));
 
     const total = totalSessions?.count || 0;
-    const abandonedCount = abandoned?.count || 0;
+    const abandonedCount = (abandoned?.count || 0) + (unfinished?.count || 0);
     const totalVotesCount = totalVotes?.count || 0;
     const upvotesCount = upvotes?.count || 0;
     const suggestionCount = suggestionClicks?.count || 0;
     const typedCount = typedMessages?.count || 0;
 
+    // Topic-based metrics
+    const topicStatsQuery = `
+      SELECT 
+        cs.topic,
+        cs.case_type,
+        COUNT(*) as session_count,
+        AVG(EXTRACT(EPOCH FROM (cs.ended_at - cs.created_at))) as avg_duration_sec,
+        AVG((SELECT COUNT(*) FROM chat_messages WHERE session_id = cs.id)) as avg_messages,
+        COALESCE(AVG(cf.satisfaction::INTEGER), 0) as avg_satisfaction,
+        COUNT(CASE WHEN ui.interaction_type = 'suggestion_click' THEN 1 END) as suggestion_clicks,
+        COUNT(CASE WHEN ui.interaction_type = 'typed_message' THEN 1 END) as typed_messages
+      FROM chat_sessions cs
+      LEFT JOIN chat_feedback cf ON cf.session_id = cs.id
+      LEFT JOIN user_interactions ui ON ui.session_id = cs.id
+      ${whereParts.length > 0 ? 'WHERE ' + whereParts.join(' AND ') : ''}
+      GROUP BY cs.topic, cs.case_type
+      ORDER BY session_count DESC
+    `;
+    
+    const topicStatsRaw = await client.unsafe(topicStatsQuery);
+    const topicStats = topicStatsRaw.map((row: any) => ({
+      topic: row.topic || 'não_classificado',
+      caseType: row.case_type || 'geral',
+      sessionCount: Number(row.session_count) || 0,
+      avgDurationSec: Number(row.avg_duration_sec) || 0,
+      avgMessages: Number(row.avg_messages) || 0,
+      avgSatisfaction: Number(row.avg_satisfaction) || 0,
+      suggestionClicks: Number(row.suggestion_clicks) || 0,
+      typedMessages: Number(row.typed_messages) || 0,
+      suggestionRatio: (Number(row.suggestion_clicks) + Number(row.typed_messages)) > 0 
+        ? (Number(row.suggestion_clicks) / (Number(row.suggestion_clicks) + Number(row.typed_messages))) * 100 
+        : 0
+    }));
+
+    // Unique users metrics
+    const [uniqueUsers] = await db
+      .select({ count: sql<number>`COUNT(DISTINCT user_id)` })
+      .from(chatSessions)
+      .where(whereClause);
+
+    const [uniqueUsersWithFeedback] = await db
+      .select({ count: sql<number>`COUNT(DISTINCT cs.user_id)` })
+      .from(chatSessions)
+      .alias('cs')
+      .innerJoin(chatFeedback, eq(chatFeedback.sessionId, sql`cs.id`))
+      .where(whereClause);
+
     return {
       totalSessions: total,
+      uniqueUsers: uniqueUsers?.count || 0,
+      uniqueUsersWithFeedback: uniqueUsersWithFeedback?.count || 0,
+      feedbackCompletionRate: (uniqueUsers?.count || 0) > 0 ? ((uniqueUsersWithFeedback?.count || 0) / (uniqueUsers?.count || 0)) * 100 : 0,
       withMicroInteractions: withMicro?.count || 0,
       withoutMicroInteractions: withoutMicro?.count || 0,
       abandonmentRate: total > 0 ? (abandonedCount / total) * 100 : 0,
@@ -289,6 +362,7 @@ export async function getDashboardStats(filters?: {
       suggestionRatio: suggestionCount + typedCount > 0 ? (suggestionCount / (suggestionCount + typedCount)) * 100 : 0,
       sessionsPerDay,
       dailyBreakdown,
+      topicStats,
       sessionDuration: {
         avgMs: Number(durationQuery[0]?.avgMs) || 0,
         medianMs: Number(durationQuery[0]?.medianMs) || 0,

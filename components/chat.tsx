@@ -3,11 +3,12 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import useSWR from "swr";
 import { ChatHeader } from "@/components/chat-header";
 import { DetailedFeedback } from "@/components/feedback-system";
 import { EndSessionModal } from "@/components/end-session-modal";
+import { sessionManager } from "@/lib/session-manager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -135,21 +136,39 @@ export function Chat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showDetailedFeedback, setShowDetailedFeedback] = useState(false);
   const [showEndSessionModal, setShowEndSessionModal] = useState(false);
-  const [feedbackTrigger, setFeedbackTrigger] = useState<"milestone" | "idle" | "end_session">("milestone");
-  const [hasShownFeedback, setHasShownFeedback] = useState(false);
-  const [interactionCount, setInteractionCount] = useState(0);
+  const [feedbackTrigger, setFeedbackTrigger] = useState<string>("milestone");
+  const [currentCaseType, setCurrentCaseType] = useState<string>("geral");
   const [sessionEnded, setSessionEnded] = useState(false);
   const lastActivityRef = useRef(Date.now());
   const idleTimerRef = useRef<NodeJS.Timeout>();
-  const lastMessageCountRef = useRef(0);
 
-  // Redirect if session was already ended
+  // Capture abandonment events
   useEffect(() => {
-    const wasEnded = sessionStorage.getItem(`session_ended_${id}`);
-    if (wasEnded === "true") {
-      window.location.replace("/");
-    }
-  }, [id]);
+    const handleBeforeUnload = () => {
+      if (!sessionEnded) {
+        navigator.sendBeacon('/api/sessions/abandon', JSON.stringify({ sessionId: id }));
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && !sessionEnded) {
+        fetch('/api/sessions/abandon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: id }),
+          keepalive: true
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [id, sessionEnded]);
 
   // Idle detection - 15s inactivity
   useEffect(() => {
@@ -198,22 +217,55 @@ export function Chat({
     }
   }, [interactionCount, showEndSessionModal, sessionEnded, id, messages, status]);
 
-  const handleInteraction = () => {
-    if (!sessionEnded) {
-      setInteractionCount(prev => prev + 1);
+  const handleInteraction = useCallback(async (message?: string) => {
+    if (!sessionEnded && message) {
+      try {
+        const result = sessionManager.addMessage(id, message);
+        
+        if (result.shouldShowFeedback) {
+          setCurrentCaseType(result.caseType);
+          setFeedbackTrigger(result.trigger);
+          setShowEndSessionModal(true);
+          
+          // Single API call for all tracking
+          await fetch("/api/sessions/interaction", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              sessionId: id, 
+              message,
+              caseType: result.caseType,
+              trigger: result.trigger
+            }),
+          });
+        }
+      } catch (error) {
+        console.error('Interaction handling failed:', error);
+      }
     }
-  };
+  }, [id, sessionEnded]);
 
   const handleSessionSolved = async () => {
     setShowEndSessionModal(false);
     setSessionEnded(true);
     sessionStorage.setItem(`session_ended_${id}`, "true");
     
-    await fetch("/api/interactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: id, interactionType: "end_modal_answer_yes" }),
-    }).catch(console.error);
+    await Promise.all([
+      fetch("/api/sessions/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: id, resolved: true }),
+      }),
+      fetch("/api/interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          sessionId: id, 
+          interactionType: "end_modal_answer_yes",
+          topic: currentCaseType
+        }),
+      })
+    ]).catch(console.error);
     
     setShowDetailedFeedback(true);
   };
@@ -272,7 +324,9 @@ export function Chat({
               selectedModelId={currentModelId}
               selectedVisibilityType={initialVisibilityType}
               sendMessage={(message) => {
-                handleInteraction();
+                const textPart = message.parts?.find(part => part.type === 'text');
+                const messageText = textPart && 'text' in textPart ? textPart.text : "";
+                handleInteraction(messageText);
                 return sendMessage(message);
               }}
               setAttachments={setAttachments}
@@ -308,7 +362,8 @@ export function Chat({
               sessionId: id, 
               interactionType: "feedback_skipped",
               content: "user_skipped_feedback",
-              metadata: { source: "feedback_flow" }
+              topic: currentCaseType,
+              metadata: { source: "feedback_flow", caseType: currentCaseType }
             }),
           }).catch(console.error);
           window.location.replace("https://www.gatapretasapatilhas.com.br");
@@ -321,13 +376,15 @@ export function Chat({
               sessionId: id, 
               interactionType: "post_feedback_redirect",
               content: "auto_redirect_after_feedback",
-              metadata: { source: "feedback_flow" }
+              topic: currentCaseType,
+              metadata: { source: "feedback_flow", caseType: currentCaseType }
             }),
           }).catch(console.error);
           window.location.replace("https://www.gatapretasapatilhas.com.br");
         }}
         chatId={id}
         trigger={feedbackTrigger}
+        caseType={currentCaseType}
       />
 
       <AlertDialog

@@ -20,11 +20,14 @@ export type User = InferSelectModel<typeof user>;
 
 export const chatSessions = pgTable("chat_sessions", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: varchar("user_id", { length: 64 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   endedAt: timestamp("ended_at"),
   abandoned: boolean("abandoned").notNull().default(false),
   withMicroInteractions: boolean("with_micro_interactions").notNull().default(false),
+  topic: varchar("topic", { length: 64 }),
+  caseType: varchar("case_type", { length: 64 }),
   metadata: jsonb("metadata"),
 });
 
@@ -71,6 +74,7 @@ export const userInteractions = pgTable("user_interactions", {
   sessionId: uuid("session_id").notNull().references(() => chatSessions.id),
   interactionType: varchar("interaction_type", { length: 64 }).notNull(),
   content: text("content"),
+  topic: varchar("topic", { length: 64 }),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

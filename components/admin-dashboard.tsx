@@ -8,6 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 type DashboardStats = {
   totalSessions: number;
+  uniqueUsers: number;
+  uniqueUsersWithFeedback: number;
+  feedbackCompletionRate: number;
   withMicroInteractions: number;
   withoutMicroInteractions: number;
   abandonmentRate: number;
@@ -40,6 +43,17 @@ type DashboardStats = {
     avgSatisfaction: number;
     avgConfidence: number;
   }>;
+  topicStats: Array<{
+    topic: string;
+    caseType: string;
+    sessionCount: number;
+    avgDurationSec: number;
+    avgMessages: number;
+    avgSatisfaction: number;
+    suggestionClicks: number;
+    typedMessages: number;
+    suggestionRatio: number;
+  }>;
   sessionDuration: {
     avgMs: number;
     medianMs: number;
@@ -71,9 +85,17 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState("all");
   const [conditionFilter, setConditionFilter] = useState("all");
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchStats();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchStats();
+      setLastUpdate(new Date());
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [dateFilter, conditionFilter]);
 
   const fetchStats = async () => {
@@ -112,7 +134,7 @@ export function AdminDashboard() {
     <div className="container mx-auto p-6">
       <h1 className="mb-6 text-3xl font-bold">Dashboard</h1>
 
-      <div className="mb-6 flex gap-4">
+      <div className="mb-6 flex gap-4 items-center">
         <Select value={dateFilter} onValueChange={setDateFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Time period" />
@@ -134,9 +156,20 @@ export function AdminDashboard() {
             <SelectItem value="false">Without micro-interactions</SelectItem>
           </SelectContent>
         </Select>
+        
+        <div className="text-xs text-muted-foreground">
+          Última atualização: {lastUpdate.toLocaleTimeString()}
+        </div>
+        
+        <button 
+          onClick={() => fetchStats()}
+          className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded"
+        >
+          Atualizar
+        </button>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
@@ -145,6 +178,30 @@ export function AdminDashboard() {
             <div className="text-2xl font-bold">{stats.totalSessions}</div>
             <p className="text-xs text-muted-foreground">
               With: {stats.withMicroInteractions} | Without: {stats.withoutMicroInteractions}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Usuários Únicos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.uniqueUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.totalSessions} sessões totais
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Feedback Completion</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.feedbackCompletionRate.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.uniqueUsersWithFeedback} de {stats.uniqueUsers} usuários
             </p>
           </CardContent>
         </Card>
@@ -262,6 +319,49 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Análise por Tópicos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats.topicStats && stats.topicStats.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tópico</TableHead>
+                  <TableHead className="text-right">Sessões</TableHead>
+                  <TableHead className="text-right">Duração Média</TableHead>
+                  <TableHead className="text-right">Msg/Sessão</TableHead>
+                  <TableHead className="text-right">Satisfação</TableHead>
+                  <TableHead className="text-right">Sugestões %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.topicStats.map((topic, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium">
+                      {topic.topic === 'não_classificado' ? 'Não Classificado' : 
+                       topic.topic === 'entrega' ? 'Entrega' :
+                       topic.topic === 'precos' ? 'Preços' :
+                       topic.topic === 'troca_devolucao' ? 'Troca/Devolução' :
+                       topic.topic === 'produto' ? 'Produto' :
+                       topic.topic === 'geral' ? 'Geral' : topic.topic}
+                    </TableCell>
+                    <TableCell className="text-right">{topic.sessionCount}</TableCell>
+                    <TableCell className="text-right">{formatDurationSec(topic.avgDurationSec)}</TableCell>
+                    <TableCell className="text-right">{topic.avgMessages.toFixed(1)}</TableCell>
+                    <TableCell className="text-right">{topic.avgSatisfaction.toFixed(1)}/5</TableCell>
+                    <TableCell className="text-right">{topic.suggestionRatio.toFixed(1)}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum dado de tópicos disponível</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

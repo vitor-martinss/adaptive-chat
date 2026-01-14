@@ -20,6 +20,9 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         totalSessions: 0,
+        uniqueUsers: 0,
+        uniqueUsersWithFeedback: 0,
+        feedbackCompletionRate: 0,
         withMicroInteractions: 0,
         withoutMicroInteractions: 0,
         abandonmentRate: 0,
@@ -40,6 +43,7 @@ export async function GET(request: Request) {
         suggestionRatio: 0,
         sessionsPerDay: [],
         dailyBreakdown: [],
+        topicStats: [],
         sessionDuration: {
           avgMs: 0,
           medianMs: 0,

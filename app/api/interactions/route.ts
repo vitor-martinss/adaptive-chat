@@ -3,7 +3,7 @@ import { trackUserInteraction } from "@/lib/db/queries-tcc";
 
 export async function POST(request: Request) {
   try {
-    const { sessionId, interactionType, content, metadata } = await request.json();
+    const { sessionId, interactionType, content, metadata, topic } = await request.json();
 
     if (!sessionId || !interactionType) {
       return NextResponse.json(
@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       interactionType,
       content,
       metadata: metadata || undefined,
+      topic,
     });
 
     return NextResponse.json({ success: true });
