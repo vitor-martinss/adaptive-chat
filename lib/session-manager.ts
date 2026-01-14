@@ -14,6 +14,23 @@ interface SessionState {
 class SessionManager {
   private sessions = new Map<string, SessionState>();
   private readonly FEEDBACK_COOLDOWN = 10 * 60 * 1000; // 10 min
+  private readonly SESSION_TTL = 30 * 60 * 1000; // 30 min
+
+  constructor() {
+    // Cleanup old sessions every 5 minutes
+    if (typeof window !== 'undefined') {
+      setInterval(() => this.cleanupOldSessions(), 5 * 60 * 1000);
+    }
+  }
+
+  private cleanupOldSessions() {
+    const now = Date.now();
+    for (const [id, session] of this.sessions) {
+      if (now - session.startTime > this.SESSION_TTL) {
+        this.sessions.delete(id);
+      }
+    }
+  }
 
   getOrCreateSession(sessionId: string): SessionState {
     if (!this.sessions.has(sessionId)) {

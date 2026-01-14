@@ -6,10 +6,17 @@ import {
   streamText,
 } from "ai";
 import { myProvider } from "@/lib/ai/providers";
-import { regularPrompt } from "@/lib/ai/prompts";
+import { systemPrompt } from "@/lib/ai/prompts";
 import { generateUUID } from "@/lib/utils";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 import { ChatSDKError } from "@/lib/errors";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { chatMessages, chatSessions } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
+const client = postgres(process.env.POSTGRES_URL!);
+const db = drizzle(client);
 
 export const maxDuration = 60;
 
@@ -18,20 +25,31 @@ type ChatSessionRequest = {
   message: string;
 };
 
-type ChatSessionResponse = {
-  sessionId: string;
-  reply: string;
-  withMicroInteractions: boolean;
-  responseTimeMs: number;
-};
+async function saveMessage(sessionId: string, role: "user" | "assistant", content: string) {
+  try {
+    const [session] = await db.select().from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
+    if (!session) {
+      await db.insert(chatSessions).values({ id: sessionId });
+    }
+    await db.insert(chatMessages).values({ sessionId, role, content });
+  } catch (e) {
+    console.error("Failed to save message:", e);
+  }
+}
 
 export async function POST(request: Request) {
   try {
     const json = await request.json();
-    const { message } = json as ChatSessionRequest;
+    const { message, sessionId } = json as ChatSessionRequest;
     
     if (!message?.trim()) {
       return new ChatSDKError("bad_request:api").toResponse();
+    }
+
+    const withMicroInteractions = process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true";
+
+    if (sessionId) {
+      saveMessage(sessionId, "user", message);
     }
     
     const messages = [
@@ -45,9 +63,18 @@ export async function POST(request: Request) {
       execute: ({ writer: dataStream }) => {
         const result = streamText({
           model: myProvider.languageModel("chat-model"),
-          system: regularPrompt,
+          system: systemPrompt({
+            selectedChatModel: "chat-model",
+            requestHints: { latitude: undefined, longitude: undefined, city: undefined, country: undefined },
+            withMicroInteractions,
+          }),
           messages: convertToModelMessages(messages),
           experimental_transform: smoothStream({ chunking: "word" }),
+          onFinish: async ({ text }) => {
+            if (sessionId) {
+              await saveMessage(sessionId, "assistant", text);
+            }
+          },
         });
 
         result.consumeStream();
@@ -65,5 +92,3 @@ export async function POST(request: Request) {
     return new ChatSDKError("offline:chat").toResponse();
   }
 }
-
-// DELETE method removed - not needed for single session chat
