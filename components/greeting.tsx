@@ -13,7 +13,7 @@ export const Greeting = () => {
         initial={{ opacity: 0, y: 10 }}
         transition={{ delay: 0.5 }}
       >
-        Olá! Aqui é a assistente inteligente da Gata Preta Sapatilhas?
+        Olá, aqui é a assistente inteligente da Gata Preta Sapatilhas!
       </motion.div>
       <motion.div
         animate={{ opacity: 1, y: 0 }}

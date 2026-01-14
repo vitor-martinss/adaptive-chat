@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type DashboardStats = {
   totalSessions: number;
@@ -127,7 +128,51 @@ export function AdminDashboard() {
   };
 
   if (loading || !stats) {
-    return <div className="container mx-auto p-6">Loading...</div>;
+    return (
+      <div className="container mx-auto p-6">
+        <Skeleton className="h-9 w-48 mb-6" />
+        
+        <div className="mb-6 flex gap-4">
+          <Skeleton className="h-10 w-[180px]" />
+          <Skeleton className="h-10 w-[180px]" />
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-4 w-24" /></CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-4 w-32" /></CardHeader>
+              <CardContent className="space-y-3">
+                {[...Array(4)].map((_, j) => (
+                  <Skeleton key={j} className="h-4 w-full" />
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="mb-8">
+          <CardHeader><Skeleton className="h-4 w-40" /></CardHeader>
+          <CardContent><Skeleton className="h-[200px] w-full" /></CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><Skeleton className="h-4 w-36" /></CardHeader>
+          <CardContent><Skeleton className="h-[300px] w-full" /></CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -171,68 +216,73 @@ export function AdminDashboard() {
 
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-6">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Sessions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalSessions}</div>
-            <p className="text-xs text-muted-foreground">
-              With: {stats.withMicroInteractions} | Without: {stats.withoutMicroInteractions}
+            <p className="text-xs text-muted-foreground mt-1">
+              Com: {stats.withMicroInteractions} | Sem: {stats.withoutMicroInteractions}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Usuários Únicos</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Usuários Únicos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.uniqueUsers}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               {stats.totalSessions} sessões totais
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Feedback Completion</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Feedback</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.feedbackCompletionRate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               {stats.uniqueUsersWithFeedback} de {stats.uniqueUsers} usuários
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Abandonment Rate</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Abandono</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.abandonmentRate.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sessões não finalizadas
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Avg Messages/Session</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Msgs/Sessão</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.avgMessagesPerSession.toFixed(1)}</div>
-            <p className="text-xs text-muted-foreground">Total: {stats.totalMessages}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total: {stats.totalMessages}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Upvote Ratio</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Upvote Ratio</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.upvoteRatio.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.upvotes} / {stats.totalVotes} votes
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.upvotes} de {stats.totalVotes} votos
             </p>
           </CardContent>
         </Card>
@@ -240,79 +290,79 @@ export function AdminDashboard() {
 
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Feedback Metrics</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Métricas de Feedback</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Avg Satisfaction:</span>
-                <span className="font-bold">{Number(stats.avgSatisfaction || 0).toFixed(1)}/5</span>
+                <span className="text-muted-foreground">Satisfação Média</span>
+                <span className="font-semibold">{Number(stats.avgSatisfaction || 0).toFixed(1)}/5</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Completed Sessions:</span>
-                <span className="font-bold">{stats.completedSessions}</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Sessões Completas</span>
+                <span className="font-semibold">{stats.completedSessions}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Redirected Sessions:</span>
-                <span className="font-bold">{stats.redirectedSessions}</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Redirecionados</span>
+                <span className="font-semibold">{stats.redirectedSessions}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Skipped Feedback:</span>
-                <span className="font-bold">{stats.skippedSessions}</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Feedback Pulado</span>
+                <span className="font-semibold">{stats.skippedSessions}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Redirect Rate:</span>
-                <span className="font-bold">{stats.redirectRate.toFixed(1)}%</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Taxa Redirect</span>
+                <span className="font-semibold">{stats.redirectRate.toFixed(1)}%</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">User Engagement</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Engajamento</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Suggestion Clicks:</span>
-                <span className="font-bold">{stats.suggestionClicks}</span>
+                <span className="text-muted-foreground">Cliques em Sugestões</span>
+                <span className="font-semibold">{stats.suggestionClicks}</span>
               </div>
               <div className="flex justify-between">
-                <span>Typed Messages:</span>
-                <span className="font-bold">{stats.typedMessages}</span>
+                <span className="text-muted-foreground">Msgs Digitadas</span>
+                <span className="font-semibold">{stats.typedMessages}</span>
               </div>
               <div className="flex justify-between">
-                <span>Suggestion Ratio:</span>
-                <span className="font-bold">{stats.suggestionRatio.toFixed(1)}%</span>
+                <span className="text-muted-foreground">Ratio Sugestões</span>
+                <span className="font-semibold">{stats.suggestionRatio.toFixed(1)}%</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Session Time</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Tempo de Sessão</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Avg Duration:</span>
-                <span className="font-bold">{formatDuration(stats.sessionDuration.avgMs)}</span>
+                <span className="text-muted-foreground">Duração Média</span>
+                <span className="font-semibold">{formatDuration(stats.sessionDuration.avgMs)}</span>
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>With Micro:</span>
-                <span>{formatDuration(stats.sessionDuration.avgWithMicroMs)}</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Com Micro</span>
+                <span className="font-semibold">{formatDuration(stats.sessionDuration.avgWithMicroMs)}</span>
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Without Micro:</span>
-                <span>{formatDuration(stats.sessionDuration.avgWithoutMicroMs)}</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Sem Micro</span>
+                <span className="font-semibold">{formatDuration(stats.sessionDuration.avgWithoutMicroMs)}</span>
               </div>
               {stats.sessionDuration.avgAbandonedMs > 0 && (
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Avg Drop-Off:</span>
-                  <span>{formatDuration(stats.sessionDuration.avgAbandonedMs)}</span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Até Abandono</span>
+                  <span className="font-semibold">{formatDuration(stats.sessionDuration.avgAbandonedMs)}</span>
                 </div>
               )}
             </div>
