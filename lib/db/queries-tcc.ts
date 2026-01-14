@@ -213,7 +213,7 @@ export async function getDashboardStats(filters?: {
     // Daily breakdown with all metrics - FIXED: use subqueries to avoid JOIN inflation
     let dailyQuery = `
       SELECT 
-        DATE(cs.created_at) as date,
+        TO_CHAR(DATE(cs.created_at), 'YYYY-MM-DD') as date,
         COUNT(CASE WHEN cs.with_micro_interactions = true THEN 1 END) as sessions_with,
         COUNT(CASE WHEN cs.with_micro_interactions = false THEN 1 END) as sessions_without,
         COUNT(*) as total_sessions,
