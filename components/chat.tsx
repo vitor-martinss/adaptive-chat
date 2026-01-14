@@ -139,8 +139,18 @@ export function Chat({
   const [showEndSessionModal, setShowEndSessionModal] = useState(false);
   const [feedbackTrigger, setFeedbackTrigger] = useState<string>("milestone");
   const [currentCaseType, setCurrentCaseType] = useState<CaseType>("geral");
-  const [sessionEnded, setSessionEnded] = useState(false);
-  const [hasShownFeedback, setHasShownFeedback] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(`session_ended_${id}`) === "true";
+    }
+    return false;
+  });
+  const [hasShownFeedback, setHasShownFeedback] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(`session_ended_${id}`) === "true";
+    }
+    return false;
+  });
   const [interactionCount, setInteractionCount] = useState(0);
   const lastActivityRef = useRef(Date.now());
   const idleTimerRef = useRef<NodeJS.Timeout>();

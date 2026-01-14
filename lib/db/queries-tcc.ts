@@ -169,12 +169,19 @@ export async function getDashboardStats(filters?: {
       console.error('Feedback query error:', e);
     }
 
-    // Vote metrics
-    const [totalVotes] = await db.select({ count: count() }).from(chatVotes);
+    // Vote metrics - FIXED: apply session filters via join
+    const voteConditions = whereClause ? [whereClause] : [];
+    const [totalVotes] = await db
+      .select({ count: count() })
+      .from(chatVotes)
+      .innerJoin(chatSessions, eq(chatVotes.chatId, chatSessions.id))
+      .where(voteConditions.length > 0 ? and(...voteConditions) : undefined);
+    
     const [upvotes] = await db
       .select({ count: count() })
       .from(chatVotes)
-      .where(eq(chatVotes.isUpvoted, true));
+      .innerJoin(chatSessions, eq(chatVotes.chatId, chatSessions.id))
+      .where(voteConditions.length > 0 ? and(...voteConditions, eq(chatVotes.isUpvoted, true)) : eq(chatVotes.isUpvoted, true));
 
     // Interaction metrics
     const suggestionConditions = whereClause ? [whereClause, eq(userInteractions.interactionType, "suggestion_click")] : [eq(userInteractions.interactionType, "suggestion_click")];
@@ -203,25 +210,29 @@ export async function getDashboardStats(filters?: {
       .groupBy(sql`DATE(chat_sessions.created_at)`, chatSessions.withMicroInteractions)
       .orderBy(sql`DATE(chat_sessions.created_at)`);
 
-    // Daily breakdown with all metrics
+    // Daily breakdown with all metrics - FIXED: use subqueries to avoid JOIN inflation
     let dailyQuery = `
       SELECT 
         DATE(cs.created_at) as date,
         COUNT(CASE WHEN cs.with_micro_interactions = true THEN 1 END) as sessions_with,
         COUNT(CASE WHEN cs.with_micro_interactions = false THEN 1 END) as sessions_without,
         COUNT(*) as total_sessions,
-        COUNT(cm.id) as total_messages,
+        COALESCE(SUM((SELECT COUNT(*) FROM chat_messages WHERE session_id = cs.id)), 0) as total_messages,
         COALESCE(AVG(EXTRACT(EPOCH FROM (cs.ended_at - cs.created_at))), 0) as avg_duration_sec,
         COALESCE(AVG((SELECT COUNT(*) FROM chat_messages WHERE session_id = cs.id)), 0) as avg_messages,
-        COALESCE(SUM(CASE WHEN cv.is_upvoted = true THEN 1 ELSE 0 END)::float / NULLIF(COUNT(DISTINCT cv.message_id), 0), 0) as upvote_ratio,
-        COALESCE(SUM(CASE WHEN ui.interaction_type = 'suggestion_click' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(DISTINCT ui.id), 0), 0) as suggestion_ratio,
-        COALESCE(AVG(cf.satisfaction::INTEGER), 0) as avg_satisfaction,
-        COALESCE(AVG(cf.confidence::INTEGER), 0) as avg_confidence
+        COALESCE(
+          SUM((SELECT COUNT(*) FROM chat_votes WHERE chat_id = cs.id AND is_upvoted = true))::float / 
+          NULLIF(SUM((SELECT COUNT(*) FROM chat_votes WHERE chat_id = cs.id)), 0), 
+          0
+        ) as upvote_ratio,
+        COALESCE(
+          SUM((SELECT COUNT(*) FROM user_interactions WHERE session_id = cs.id AND interaction_type = 'suggestion_click'))::float / 
+          NULLIF(SUM((SELECT COUNT(*) FROM user_interactions WHERE session_id = cs.id AND interaction_type IN ('suggestion_click', 'typed_message'))), 0), 
+          0
+        ) as suggestion_ratio,
+        COALESCE(AVG((SELECT AVG(satisfaction::INTEGER) FROM chat_feedback WHERE session_id = cs.id)), 0) as avg_satisfaction,
+        COALESCE(AVG((SELECT AVG(confidence::INTEGER) FROM chat_feedback WHERE session_id = cs.id)), 0) as avg_confidence
       FROM chat_sessions cs
-      LEFT JOIN chat_messages cm ON cm.session_id = cs.id
-      LEFT JOIN chat_votes cv ON cv.chat_id = cs.id
-      LEFT JOIN user_interactions ui ON ui.session_id = cs.id
-      LEFT JOIN chat_feedback cf ON cf.session_id = cs.id
     `;
     
     const whereParts = [];
@@ -320,14 +331,14 @@ export async function getDashboardStats(filters?: {
         : 0
     }));
 
-    // Unique users metrics
+    // Unique users metrics - FIXED: exclude NULL user_ids
     const [uniqueUsers] = await db
-      .select({ count: sql<number>`COUNT(DISTINCT user_id)` })
+      .select({ count: sql<number>`COUNT(DISTINCT CASE WHEN user_id IS NOT NULL THEN user_id END)` })
       .from(chatSessions)
       .where(whereClause);
 
     const [uniqueUsersWithFeedback] = await db
-      .select({ count: sql<number>`COUNT(DISTINCT chat_sessions.user_id)` })
+      .select({ count: sql<number>`COUNT(DISTINCT CASE WHEN chat_sessions.user_id IS NOT NULL THEN chat_sessions.user_id END)` })
       .from(chatSessions)
       .innerJoin(chatFeedback, eq(chatFeedback.sessionId, chatSessions.id))
       .where(whereClause);
