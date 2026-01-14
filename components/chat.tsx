@@ -54,6 +54,21 @@ export function Chat({
   const [currentModelId, setCurrentModelId] = useState(initialChatModel);
   const currentModelIdRef = useRef(currentModelId);
 
+  // Create session on mount
+  useEffect(() => {
+    let userId = localStorage.getItem('chat_user_id');
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('chat_user_id', userId);
+    }
+    
+    fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: id, userId }),
+    }).catch(console.error);
+  }, [id]);
+
   useEffect(() => {
     currentModelIdRef.current = currentModelId;
   }, [currentModelId]);
@@ -232,6 +247,8 @@ export function Chat({
 
   const handleInteraction = useCallback(async (message?: string) => {
     if (!sessionEnded && message) {
+      setInteractionCount(prev => prev + 1);
+      
       try {
         const result = sessionManager.addMessage(id, message);
         
