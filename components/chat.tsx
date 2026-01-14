@@ -56,6 +56,9 @@ export function Chat({
 
   // Create session on mount
   useEffect(() => {
+    // Skip if session already ended (user came back)
+    if (sessionStorage.getItem(`session_ended_${id}`) === "true") return;
+    
     let userId = localStorage.getItem('chat_user_id');
     if (!userId) {
       userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -66,7 +69,7 @@ export function Chat({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: id, userId }),
-    }).catch(console.error);
+    }).catch(() => {}); // Silently ignore - session may already exist
   }, [id]);
 
   useEffect(() => {

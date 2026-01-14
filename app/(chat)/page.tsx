@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { ChatWithFeedback } from "@/components/chat-with-feedback";
 import { DataStreamHandler } from "@/components/data-stream-handler";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
@@ -9,17 +8,15 @@ export default async function Page() {
 
   return (
     <>
-      <Suspense fallback={<div>Loading...</div>}>
-        <ChatWithFeedback
-          autoResume={false}
-          id={id}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialMessages={[]}
-          initialVisibilityType="private"
-          isReadonly={false}
-          key={id}
-        />
-      </Suspense>
+      <ChatWithFeedback
+        autoResume={false}
+        id={id}
+        initialChatModel={DEFAULT_CHAT_MODEL}
+        initialMessages={[]}
+        initialVisibilityType="private"
+        isReadonly={false}
+        key={id}
+      />
       <DataStreamHandler />
     </>
   );

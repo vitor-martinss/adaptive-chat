@@ -14,6 +14,18 @@ import { withTransaction } from "./transaction";
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
 
+// Ensure session exists - safe upsert
+export async function ensureSessionExists(sessionId: string, userId?: string, withMicroInteractions?: boolean) {
+  const [existing] = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
+  if (!existing) {
+    await db.insert(chatSessions).values({
+      id: sessionId,
+      userId,
+      withMicroInteractions: withMicroInteractions ?? false,
+    });
+  }
+}
+
 export async function trackUserInteraction({
   sessionId,
   interactionType,
@@ -27,20 +39,13 @@ export async function trackUserInteraction({
   metadata?: Record<string, any>;
   topic?: string;
 }) {
-  return withTransaction(async (tx) => {
-    // Ensure session exists
-    const [session] = await tx.select().from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
-    if (!session) {
-      await tx.insert(chatSessions).values({ id: sessionId });
-    }
-    
-    await tx.insert(userInteractions).values({
-      sessionId,
-      interactionType,
-      content,
-      metadata,
-      topic,
-    });
+  await ensureSessionExists(sessionId);
+  await db.insert(userInteractions).values({
+    sessionId,
+    interactionType,
+    content,
+    metadata,
+    topic,
   });
 }
 
