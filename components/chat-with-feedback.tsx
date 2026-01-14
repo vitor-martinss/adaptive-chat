@@ -1,6 +1,7 @@
 "use client";
 
-import { ChatWithFeedback } from "./chat-with-feedback";
+import { useEffect } from "react";
+import { Chat } from "./chat";
 import { ChatErrorBoundary } from "./chat-error-boundary";
 import type { VisibilityType } from "./visibility-selector";
 

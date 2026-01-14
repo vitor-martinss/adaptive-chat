@@ -9,6 +9,7 @@ import { ChatHeader } from "@/components/chat-header";
 import { DetailedFeedback } from "@/components/feedback-system";
 import { EndSessionModal } from "@/components/end-session-modal";
 import { sessionManager } from "@/lib/session-manager";
+import type { CaseType } from "@/lib/case-classification";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -137,8 +138,10 @@ export function Chat({
   const [showDetailedFeedback, setShowDetailedFeedback] = useState(false);
   const [showEndSessionModal, setShowEndSessionModal] = useState(false);
   const [feedbackTrigger, setFeedbackTrigger] = useState<string>("milestone");
-  const [currentCaseType, setCurrentCaseType] = useState<string>("geral");
+  const [currentCaseType, setCurrentCaseType] = useState<CaseType>("geral");
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [hasShownFeedback, setHasShownFeedback] = useState(false);
+  const [interactionCount, setInteractionCount] = useState(0);
   const lastActivityRef = useRef(Date.now());
   const idleTimerRef = useRef<NodeJS.Timeout>();
 
@@ -324,7 +327,7 @@ export function Chat({
               selectedModelId={currentModelId}
               selectedVisibilityType={initialVisibilityType}
               sendMessage={(message) => {
-                const textPart = message.parts?.find(part => part.type === 'text');
+                const textPart = message?.parts?.find(part => part.type === 'text');
                 const messageText = textPart && 'text' in textPart ? textPart.text : "";
                 handleInteraction(messageText);
                 return sendMessage(message);
@@ -383,7 +386,7 @@ export function Chat({
           window.location.replace("https://www.gatapretasapatilhas.com.br");
         }}
         chatId={id}
-        trigger={feedbackTrigger}
+        trigger={feedbackTrigger as "idle" | "milestone" | "end_session" | "exit_intent" | "case_specific"}
         caseType={currentCaseType}
       />
 

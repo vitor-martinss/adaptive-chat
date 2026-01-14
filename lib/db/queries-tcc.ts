@@ -9,14 +9,10 @@ import {
   chatFeedback,
   userInteractions,
 } from "./schema";
+import { withTransaction } from "./transaction";
 
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
-
-import "server-only";
-import { eq } from "drizzle-orm";
-import { chatSessions, userInteractions } from "./schema";
-import { withTransaction } from "./transaction";
 
 export async function trackUserInteraction({
   sessionId,
@@ -331,10 +327,9 @@ export async function getDashboardStats(filters?: {
       .where(whereClause);
 
     const [uniqueUsersWithFeedback] = await db
-      .select({ count: sql<number>`COUNT(DISTINCT cs.user_id)` })
+      .select({ count: sql<number>`COUNT(DISTINCT chat_sessions.user_id)` })
       .from(chatSessions)
-      .alias('cs')
-      .innerJoin(chatFeedback, eq(chatFeedback.sessionId, sql`cs.id`))
+      .innerJoin(chatFeedback, eq(chatFeedback.sessionId, chatSessions.id))
       .where(whereClause);
 
     return {
