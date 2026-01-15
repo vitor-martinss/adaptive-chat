@@ -125,17 +125,28 @@ export function shouldTriggerFeedback(
 ): boolean {
   const config = getCaseConfig(caseType);
   
+  // User end phrases - trigger feedback when user says thanks/goodbye
+  if (lastMessage) {
+    const lowerMessage = lastMessage.toLowerCase();
+    const userEndPhrases = [
+      'obrigado', 'obrigada', 'valeu', 'brigado', 'brigada',
+      'muito obrigado', 'muito obrigada', 'thanks', 'vlw',
+      'era isso', 'era só isso', 'só isso', 'é isso',
+      'tchau', 'até mais', 'até logo', 'falou', 'flw',
+      'entendi', 'entendido', 'beleza', 'blz', 'ok obrigado',
+      'perfeito', 'show', 'top', 'maravilha'
+    ];
+    if (userEndPhrases.some(phrase => lowerMessage.includes(phrase)) && interactionCount >= 1) {
+      return true;
+    }
+  }
+  
   // Early feedback for negative signals
   if (conversationContext?.hasNegativeSignals && interactionCount >= 2) {
     return true;
   }
   
-  // Skip feedback if clearly resolved with positive signals
-  if (conversationContext?.seemsResolved && conversationContext?.hasPositiveSignals) {
-    return false;
-  }
-  
-  // Check end phrases first (highest priority)
+  // Check AI end phrases (highest priority)
   if (lastMessage && config.feedbackTrigger.endPhrases) {
     const lowerMessage = lastMessage.toLowerCase();
     const hasEndPhrase = config.feedbackTrigger.endPhrases.some(phrase => 
@@ -146,7 +157,7 @@ export function shouldTriggerFeedback(
     }
   }
   
-  // Standard interaction count trigger
+  // Standard interaction count trigger (case-specific)
   if (interactionCount >= config.feedbackTrigger.interactionCount) {
     return true;
   }

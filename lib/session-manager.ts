@@ -56,9 +56,13 @@ class SessionManager {
     session.messages.push(message);
     session.interactionCount++;
 
-    // Classify only once or when significant change detected
-    if (session.interactionCount === 1 || this.shouldReclassify(session, message)) {
-      session.caseType = classifyTopic(message);
+    // Classify based on ALL messages for better accuracy
+    const allText = session.messages.join(' ');
+    const newCaseType = classifyTopic(allText);
+    
+    // Update case type if we found a specific one (not geral)
+    if (newCaseType !== 'geral' || session.caseType === 'geral') {
+      session.caseType = newCaseType;
     }
 
     const context = analyzeConversationContext(session.messages);

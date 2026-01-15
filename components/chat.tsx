@@ -170,7 +170,6 @@ export function Chat({
     return false;
   });
   const [interactionCount, setInteractionCount] = useState(0);
-  const lastActivityRef = useRef(Date.now());
   const idleTimerRef = useRef<NodeJS.Timeout>();
 
   // Capture abandonment events
@@ -201,52 +200,29 @@ export function Chat({
     };
   }, [id, sessionEnded]);
 
-  // Idle detection - 15s inactivity
+  // Idle detection - 15s after last message
   useEffect(() => {
-    const resetIdle = () => {
-      lastActivityRef.current = Date.now();
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      
-      if (interactionCount >= 1 && !showEndSessionModal && !sessionEnded) {
-        idleTimerRef.current = setTimeout(() => {
-          setFeedbackTrigger("idle");
-          setShowEndSessionModal(true);
-          fetch("/api/interactions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId: id, interactionType: "end_modal_shown" }),
-          }).catch(console.error);
-        }, 15000);
-      }
-    };
-
-    window.addEventListener('mousemove', resetIdle);
-    window.addEventListener('keydown', resetIdle);
-    window.addEventListener('click', resetIdle);
-    resetIdle();
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    
+    if (interactionCount >= 1 && !showEndSessionModal && !sessionEnded && !hasShownFeedback) {
+      idleTimerRef.current = setTimeout(() => {
+        setFeedbackTrigger("idle");
+        setShowEndSessionModal(true);
+        fetch("/api/interactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: id, interactionType: "end_modal_shown_idle" }),
+        }).catch(console.error);
+      }, 15000);
+    }
 
     return () => {
-      window.removeEventListener('mousemove', resetIdle);
-      window.removeEventListener('keydown', resetIdle);
-      window.removeEventListener('click', resetIdle);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [interactionCount, showEndSessionModal, sessionEnded, id]);
+  }, [interactionCount, showEndSessionModal, sessionEnded, hasShownFeedback, id]);
 
-  // Check interaction count for end-session modal (wait for AI response)
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    const isAIResponding = status === "streaming";
-    
-    if (interactionCount > 0 && interactionCount % 4 === 0 && !showEndSessionModal && !sessionEnded && !isAIResponding && lastMessage?.role === "assistant") {
-      setShowEndSessionModal(true);
-      fetch("/api/interactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: id, interactionType: "end_modal_shown" }),
-      }).catch(console.error);
-    }
-  }, [interactionCount, showEndSessionModal, sessionEnded, id, messages, status]);
+  // Milestone check is now handled by sessionManager in handleInteraction
+  // This effect is removed - sessionManager.shouldTriggerFeedback handles case-specific milestones
 
   const handleInteraction = useCallback(async (message?: string) => {
     if (!sessionEnded && message) {
@@ -254,13 +230,20 @@ export function Chat({
       
       try {
         const result = sessionManager.addMessage(id, message);
+        setCurrentCaseType(result.caseType);
         
-        if (result.shouldShowFeedback) {
-          setCurrentCaseType(result.caseType);
+        // Save topic to database
+        fetch("/api/sessions/update-topic", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: id, topic: result.caseType, caseType: result.caseType }),
+        }).catch(console.error);
+        
+        if (result.shouldShowFeedback && !hasShownFeedback) {
           setFeedbackTrigger(result.trigger);
           setShowEndSessionModal(true);
+          setHasShownFeedback(true);
           
-          // Single API call for all tracking
           await fetch("/api/sessions/interaction", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
