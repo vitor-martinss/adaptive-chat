@@ -32,7 +32,7 @@ export const CASE_CONFIGS: CaseConfig[] = [
     keywords: [
       "preço", "valor", "custo", "custa", "desconto", "promoção", "oferta", "barato", 
       "caro", "quanto", "reais", "r$", "pagar", "pagamento", "parcelado", "à vista",
-      "cartão", "pix", "boleto", "financiamento"
+      "cartão", "pix", "boleto", "financiamento", "atacado", "mínimo", "minimo", "revenda"
     ],
     feedbackTrigger: {
       interactionCount: 2,
