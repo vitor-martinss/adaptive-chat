@@ -15,9 +15,6 @@ import postgres from "postgres";
 import { eq } from "drizzle-orm";
 import { chatMessages, chatSessions } from "@/lib/db/schema";
 
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
-
 export const maxDuration = 60;
 
 type ChatSessionRequest = {
@@ -26,14 +23,20 @@ type ChatSessionRequest = {
 };
 
 async function saveMessage(sessionId: string, role: "user" | "assistant", content: string) {
+  let client;
   try {
-    const [existing] = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
-    if (!existing) {
+    client = postgres(process.env.POSTGRES_URL!, { max: 1 });
+    const db = drizzle(client);
+    
+    const existing = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
+    if (existing.length === 0) {
       await db.insert(chatSessions).values({ id: sessionId });
     }
     await db.insert(chatMessages).values({ sessionId, role, content });
+    await client.end();
   } catch (e) {
     console.error("Failed to save message:", e);
+    if (client) await client.end().catch(() => {});
   }
 }
 

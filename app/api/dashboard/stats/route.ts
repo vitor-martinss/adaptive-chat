@@ -10,11 +10,12 @@ import {
   userInteractions,
 } from "@/lib/db/schema";
 
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
-
 export async function GET(request: Request) {
+  let client;
   try {
+    client = postgres(process.env.POSTGRES_URL!, { max: 1 });
+    const db = drizzle(client);
+
     const { searchParams } = new URL(request.url);
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
@@ -116,6 +117,8 @@ export async function GET(request: Request) {
     const typedMessages = typedResult?.count || 0;
     const completedSessions = feedbackResult?.count || 0;
 
+    await client.end();
+
     return NextResponse.json({
       totalSessions,
       uniqueUsers: uniqueUsersResult?.count || 0,
@@ -152,6 +155,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Dashboard stats error:", error);
+    if (client) await client.end().catch(() => {});
     return NextResponse.json({
       totalSessions: 0, uniqueUsers: 0, uniqueUsersWithFeedback: 0, feedbackCompletionRate: 0,
       withMicroInteractions: 0, withoutMicroInteractions: 0, abandonmentRate: 0,
