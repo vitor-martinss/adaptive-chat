@@ -157,6 +157,7 @@ export function Chat({
   const [showEndSessionModal, setShowEndSessionModal] = useState(false);
   const [feedbackTrigger, setFeedbackTrigger] = useState<string>("milestone");
   const [currentCaseType, setCurrentCaseType] = useState<CaseType>("geral");
+  const [currentTopic, setCurrentTopic] = useState<string | undefined>();
   const [sessionEnded, setSessionEnded] = useState(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem(`session_ended_${id}`) === "true";
@@ -229,14 +230,19 @@ export function Chat({
       setInteractionCount(prev => prev + 1);
       
       try {
-        const result = sessionManager.addMessage(id, message);
+        const result = await sessionManager.addMessage(id, message);
         setCurrentCaseType(result.caseType);
+        setCurrentTopic(result.topic);
         
         // Save topic to database
         fetch("/api/sessions/update-topic", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: id, topic: result.caseType, caseType: result.caseType }),
+          body: JSON.stringify({ 
+            sessionId: id, 
+            topic: result.topic || result.caseType, 
+            caseType: result.caseType 
+          }),
         }).catch(console.error);
         
         if (result.shouldShowFeedback && !hasShownFeedback) {
@@ -378,7 +384,7 @@ export function Chat({
               sessionId: id, 
               interactionType: "feedback_skipped",
               content: "user_skipped_feedback",
-              topic: currentCaseType,
+              topic: currentTopic || currentCaseType,
               metadata: { source: "feedback_flow", caseType: currentCaseType }
             }),
           }).catch(console.error);
@@ -392,7 +398,7 @@ export function Chat({
               sessionId: id, 
               interactionType: "post_feedback_redirect",
               content: "auto_redirect_after_feedback",
-              topic: currentCaseType,
+              topic: currentTopic || currentCaseType,
               metadata: { source: "feedback_flow", caseType: currentCaseType }
             }),
           }).catch(console.error);
@@ -401,6 +407,7 @@ export function Chat({
         chatId={id}
         trigger={feedbackTrigger as "idle" | "milestone" | "end_session" | "exit_intent" | "case_specific"}
         caseType={currentCaseType}
+        topic={currentTopic}
       />
 
       <AlertDialog

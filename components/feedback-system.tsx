@@ -25,7 +25,8 @@ export function DetailedFeedback({
   trigger,
   onSubmitSuccess,
   onSkip,
-  caseType 
+  caseType,
+  topic
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -34,6 +35,7 @@ export function DetailedFeedback({
   onSubmitSuccess?: () => void;
   onSkip?: () => void;
   caseType?: CaseType;
+  topic?: string;
 }) {
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [aspects, setAspects] = useState<string[]>([]);
@@ -83,17 +85,16 @@ export function DetailedFeedback({
   if (!isOpen) return null;
 
   const caseConfig = caseType ? getCaseConfig(caseType) : null;
+  const displayTopic = topic || caseConfig?.name || 'Conversa geral';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <Card className="w-full max-w-md mx-4">
         <CardHeader>
           <CardTitle>Como foi sua experiência?</CardTitle>
-          {caseConfig && (
-            <p className="text-sm text-muted-foreground">
-              Categoria: {caseConfig.name}
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Tópico: {displayTopic}
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Satisfaction Rating */}

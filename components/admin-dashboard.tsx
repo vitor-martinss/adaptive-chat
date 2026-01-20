@@ -391,12 +391,7 @@ export function AdminDashboard() {
                 {stats.topicStats.map((topic, idx) => (
                   <TableRow key={idx}>
                     <TableCell className="font-medium">
-                      {topic.topic === 'não_classificado' ? 'Não Classificado' : 
-                       topic.topic === 'entrega' ? 'Entrega' :
-                       topic.topic === 'precos' ? 'Preços' :
-                       topic.topic === 'troca_devolucao' ? 'Troca/Devolução' :
-                       topic.topic === 'produto' ? 'Produto' :
-                       topic.topic === 'geral' ? 'Geral' : topic.topic}
+                      {topic.topic || 'Não Classificado'}
                     </TableCell>
                     <TableCell className="text-right">{topic.sessionCount}</TableCell>
                     <TableCell className="text-right">{formatDurationSec(topic.avgDurationSec)}</TableCell>

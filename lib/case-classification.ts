@@ -108,6 +108,25 @@ export function classifyTopic(message: string): CaseType {
   return topCategory || "geral";
 }
 
+export async function extractTopicFromConversation(messages: string[]): Promise<string> {
+  const conversationText = messages.slice(-6).join('\n');
+  
+  try {
+    const response = await fetch('/api/extract-topic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation: conversationText })
+    });
+    
+    if (!response.ok) throw new Error('Failed to extract topic');
+    
+    const { topic } = await response.json();
+    return topic || 'Conversa geral';
+  } catch {
+    return 'Conversa geral';
+  }
+}
+
 export function getCaseConfig(caseType: CaseType): CaseConfig {
   return CASE_CONFIGS.find(config => config.type === caseType) || CASE_CONFIGS[CASE_CONFIGS.length - 1];
 }

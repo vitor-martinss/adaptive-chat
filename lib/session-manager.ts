@@ -47,11 +47,12 @@ class SessionManager {
     return this.sessions.get(sessionId)!;
   }
 
-  addMessage(sessionId: string, message: string): {
+  async addMessage(sessionId: string, message: string): Promise<{
     shouldShowFeedback: boolean;
     caseType: CaseType;
     trigger: string;
-  } {
+    topic?: string;
+  }> {
     const session = this.getOrCreateSession(sessionId);
     session.messages.push(message);
     session.interactionCount++;
@@ -79,15 +80,21 @@ class SessionManager {
                         context
                       );
 
+    let extractedTopic: string | undefined;
     if (shouldShow) {
       session.feedbackShown = true;
       session.lastFeedbackTime = Date.now();
+      
+      // Extract topic using LLM when showing feedback
+      const { extractTopicFromConversation } = await import('@/lib/case-classification');
+      extractedTopic = await extractTopicFromConversation(session.messages);
     }
 
     return {
       shouldShowFeedback: shouldShow,
       caseType: session.caseType,
-      trigger: this.determineTrigger(session, context)
+      trigger: this.determineTrigger(session, context),
+      topic: extractedTopic
     };
   }
 
