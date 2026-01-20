@@ -17,10 +17,8 @@ class SessionManager {
   private readonly SESSION_TTL = 30 * 60 * 1000; // 30 min
 
   constructor() {
-    // Cleanup old sessions every 5 minutes
-    if (typeof window !== 'undefined') {
-      setInterval(() => this.cleanupOldSessions(), 5 * 60 * 1000);
-    }
+    // Cleanup old sessions every 5 minutes (works both client and server)
+    setInterval(() => this.cleanupOldSessions(), 5 * 60 * 1000);
   }
 
   private cleanupOldSessions() {

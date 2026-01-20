@@ -39,6 +39,7 @@ export const chatMessages = pgTable("chat_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   role: varchar("role", { enum: ["user", "assistant"] }).notNull(),
   content: text("content").notNull(),
+  metadata: jsonb("metadata"),
 });
 
 export type ChatMessage = InferSelectModel<typeof chatMessages>;

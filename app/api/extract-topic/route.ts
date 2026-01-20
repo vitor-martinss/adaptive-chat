@@ -1,12 +1,12 @@
 import { generateText } from 'ai';
-import { getModel } from '@/lib/ai/models';
+import { myProvider } from '@/lib/ai/providers';
 
 export async function POST(request: Request) {
   try {
     const { conversation } = await request.json();
 
     const { text } = await generateText({
-      model: getModel('grok-3-mini'),
+      model: myProvider.languageModel('chat-model'),
       prompt: `Analise esta conversa e extraia o tópico principal em uma frase curta (máximo 6 palavras).
 Seja específico e objetivo. Responda apenas o tópico, sem explicações.
 
@@ -14,12 +14,15 @@ Conversa:
 ${conversation}
 
 Tópico:`,
-      maxTokens: 30,
     });
 
     return Response.json({ topic: text.trim() });
   } catch (error) {
-    console.error('Topic extraction error:', error);
-    return Response.json({ topic: 'Conversa geral' }, { status: 200 });
+    console.error('Topic extraction error:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    return Response.json({ topic: 'Conversa geral', error: true }, { status: 200 });
   }
 }

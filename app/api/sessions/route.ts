@@ -17,16 +17,12 @@ export async function POST(request: Request) {
     client = postgres(process.env.POSTGRES_URL!, { max: 1 });
     const db = drizzle(client);
 
-    // Check if exists first
-    const existing = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
-    
-    if (existing.length === 0) {
-      await db.insert(chatSessions).values({
-        id: sessionId,
-        userId: userId || null,
-        withMicroInteractions: withMicroInteractions ?? false,
-      });
-    }
+    // Upsert to avoid race conditions
+    await db.insert(chatSessions).values({
+      id: sessionId,
+      userId: userId || null,
+      withMicroInteractions: withMicroInteractions ?? false,
+    }).onConflictDoNothing();
 
     await client.end();
     return NextResponse.json({ success: true });

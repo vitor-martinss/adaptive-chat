@@ -28,10 +28,9 @@ async function saveMessage(sessionId: string, role: "user" | "assistant", conten
     client = postgres(process.env.POSTGRES_URL!, { max: 1 });
     const db = drizzle(client);
     
-    const existing = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
-    if (existing.length === 0) {
-      await db.insert(chatSessions).values({ id: sessionId });
-    }
+    // Upsert session to avoid race conditions
+    await db.insert(chatSessions).values({ id: sessionId }).onConflictDoNothing();
+    
     await db.insert(chatMessages).values({ sessionId, role, content });
     await client.end();
   } catch (e) {

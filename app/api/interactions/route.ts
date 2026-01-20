@@ -17,11 +17,8 @@ export async function POST(request: Request) {
     client = postgres(process.env.POSTGRES_URL!, { max: 1 });
     const db = drizzle(client);
 
-    // Ensure session exists
-    const existing = await db.select({ id: chatSessions.id }).from(chatSessions).where(eq(chatSessions.id, sessionId)).limit(1);
-    if (existing.length === 0) {
-      await db.insert(chatSessions).values({ id: sessionId });
-    }
+    // Ensure session exists with upsert
+    await db.insert(chatSessions).values({ id: sessionId }).onConflictDoNothing();
 
     await db.insert(userInteractions).values({
       sessionId,

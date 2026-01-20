@@ -50,6 +50,7 @@ export async function GET(request: Request) {
     // Feedback
     const [feedbackResult] = await db.select({
       avgSatisfaction: avg(sql`${chatFeedback.satisfaction}::integer`),
+      avgConfidence: avg(sql`${chatFeedback.confidence}::integer`),
       count: count(),
     }).from(chatFeedback);
 
@@ -60,6 +61,15 @@ export async function GET(request: Request) {
     // Interactions
     const [suggestionResult] = await db.select({ count: count() }).from(userInteractions).where(eq(userInteractions.interactionType, "suggestion_click"));
     const [typedResult] = await db.select({ count: count() }).from(userInteractions).where(eq(userInteractions.interactionType, "typed_message"));
+
+    // Interactions for redirected/skipped sessions
+    const [redirectedResult] = await db.select({ count: count() })
+      .from(userInteractions)
+      .where(eq(userInteractions.interactionType, "post_feedback_redirect"));
+    
+    const [skippedResult] = await db.select({ count: count() })
+      .from(userInteractions)
+      .where(eq(userInteractions.interactionType, "feedback_skipped"));
 
     // Unique users
     const [uniqueUsersResult] = await db.select({ count: sql<number>`COUNT(DISTINCT user_id)` }).from(chatSessions).where(whereClause);
@@ -116,6 +126,8 @@ export async function GET(request: Request) {
     const suggestionClicks = suggestionResult?.count || 0;
     const typedMessages = typedResult?.count || 0;
     const completedSessions = feedbackResult?.count || 0;
+    const redirectedSessions = redirectedResult?.count || 0;
+    const skippedSessions = skippedResult?.count || 0;
 
     await client.end();
 
@@ -130,11 +142,11 @@ export async function GET(request: Request) {
       totalMessages: messagesResult?.count || 0,
       avgMessagesPerSession: totalSessions > 0 ? (messagesResult?.count || 0) / totalSessions : 0,
       avgSatisfaction: Number(feedbackResult?.avgSatisfaction) || 0,
-      avgConfidence: 0,
+      avgConfidence: Number(feedbackResult?.avgConfidence) || 0,
       completedSessions,
-      redirectedSessions: 0,
-      skippedSessions: 0,
-      redirectRate: 0,
+      redirectedSessions,
+      skippedSessions,
+      redirectRate: completedSessions > 0 ? (redirectedSessions / completedSessions) * 100 : 0,
       totalVotes,
       upvotes,
       downvotes: totalVotes - upvotes,
