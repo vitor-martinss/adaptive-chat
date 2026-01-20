@@ -229,24 +229,24 @@ export function AdminDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Usuários Únicos</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Sessões Completas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.uniqueUsers}</div>
+            <div className="text-2xl font-bold">{stats.completedSessions}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.totalSessions} sessões totais
+              {stats.totalSessions > 0 ? ((stats.completedSessions / stats.totalSessions) * 100).toFixed(1) : 0}% do total
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Feedback</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Com Feedback</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.feedbackCompletionRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{stats.uniqueUsersWithFeedback}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.uniqueUsersWithFeedback} de {stats.uniqueUsers} usuários
+              {stats.completedSessions > 0 ? ((stats.uniqueUsersWithFeedback / stats.completedSessions) * 100).toFixed(1) : 0}% das completas
             </p>
           </CardContent>
         </Card>
