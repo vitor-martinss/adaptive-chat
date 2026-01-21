@@ -203,7 +203,7 @@ export function Chat({
     };
   }, [id, sessionEnded]);
 
-  // Idle detection - 15s after last message (only if no feedback shown recently)
+  // Idle detection - 25s after last message (only if no feedback shown recently)
   useEffect(() => {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     
@@ -217,7 +217,7 @@ export function Chat({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId: id, interactionType: "end_modal_shown_idle" }),
         }).catch(console.error);
-      }, 15000);
+      }, 25000); // Increased from 15s to 25s to give users time to read
     }
 
     return () => {
@@ -250,8 +250,12 @@ export function Chat({
         
         if (result.shouldShowFeedback && !hasShownFeedback) {
           setFeedbackTrigger(result.trigger);
-          setShowEndSessionModal(true);
           setHasShownFeedback(true);
+          
+          // Wait 10 seconds to let user read the response before showing feedback
+          setTimeout(() => {
+            setShowEndSessionModal(true);
+          }, 10000);
           
           await fetch("/api/sessions/interaction", {
             method: "POST",
