@@ -102,7 +102,9 @@ export function classifyTopic(message: string): CaseType {
   
   // Find category with highest score
   const maxScore = Math.max(...Object.values(scores));
-  if (maxScore === 0) return "geral";
+  
+  // Require at least 2 keyword matches to avoid false positives
+  if (maxScore < 2) return "geral";
   
   const topCategory = Object.entries(scores).find(([_, score]) => score === maxScore)?.[0] as CaseType;
   return topCategory || "geral";

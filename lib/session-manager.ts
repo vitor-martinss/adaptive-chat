@@ -8,7 +8,6 @@ interface SessionState {
   startTime: number;
   lastFeedbackTime: number;
   messages: string[];
-  feedbackShown: boolean;
 }
 
 class SessionManager {
@@ -39,7 +38,6 @@ class SessionManager {
         startTime: Date.now(),
         lastFeedbackTime: 0,
         messages: [],
-        feedbackShown: false
       });
     }
     return this.sessions.get(sessionId)!;
@@ -68,8 +66,8 @@ class SessionManager {
     const sessionDuration = (Date.now() - session.startTime) / 1000;
     const canShowFeedback = Date.now() - session.lastFeedbackTime > this.FEEDBACK_COOLDOWN;
 
-    const shouldShow = !session.feedbackShown && 
-                      canShowFeedback && 
+    // Check if should trigger feedback (removed feedbackShown check to allow multiple triggers)
+    const shouldShow = canShowFeedback && 
                       shouldTriggerFeedback(
                         session.caseType, 
                         session.interactionCount, 
@@ -80,7 +78,6 @@ class SessionManager {
 
     let extractedTopic: string | undefined;
     if (shouldShow) {
-      session.feedbackShown = true;
       session.lastFeedbackTime = Date.now();
       
       // Extract topic using LLM when showing feedback
@@ -110,7 +107,7 @@ class SessionManager {
   resetFeedback(sessionId: string) {
     const session = this.sessions.get(sessionId);
     if (session) {
-      session.feedbackShown = false;
+      session.lastFeedbackTime = 0;
     }
   }
 

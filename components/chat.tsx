@@ -201,14 +201,15 @@ export function Chat({
     };
   }, [id, sessionEnded]);
 
-  // Idle detection - 15s after last message
+  // Idle detection - 15s after last message (only if no feedback shown recently)
   useEffect(() => {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     
-    if (interactionCount >= 1 && !showEndSessionModal && !sessionEnded && !hasShownFeedback) {
+    if (interactionCount >= 1 && !showEndSessionModal && !sessionEnded) {
       idleTimerRef.current = setTimeout(() => {
         setFeedbackTrigger("idle");
         setShowEndSessionModal(true);
+        setHasShownFeedback(true);
         fetch("/api/interactions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -295,6 +296,7 @@ export function Chat({
   const handleSessionNotSolved = async () => {
     setShowEndSessionModal(false);
     setInteractionCount(0);
+    setHasShownFeedback(false); // Reset to allow feedback again later
     
     await fetch("/api/interactions", {
       method: "POST",
