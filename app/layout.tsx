@@ -7,7 +7,10 @@ import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://adaptive-chat.vercel.app"),
-  title: "Gatapreta Sapatilhas - Assistente Virtual",
+  title: {
+    default: "Gatapreta Sapatilhas - Assistente Virtual",
+    template: "%s | Gatapreta"
+  },
   description: "Converse com nosso assistente virtual para tirar dúvidas sobre produtos, entregas, preços e muito mais. Atendimento rápido e personalizado.",
   keywords: ["sapatilhas", "calçados", "atendimento", "assistente virtual", "gatapreta"],
   authors: [{ name: "Gatapreta Sapatilhas" }],
@@ -16,21 +19,21 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     url: "https://adaptive-chat.vercel.app",
     title: "Gatapreta Sapatilhas - Assistente Virtual",
-    description: "Tire suas dúvidas sobre produtos, entregas e preços com nosso assistente virtual.",
+    description: "Tire suas dúvidas sobre produtos, entregas e preços. Atendimento rápido e personalizado.",
     siteName: "Gatapreta Sapatilhas",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Gatapreta Sapatilhas - Assistente Virtual",
+        alt: "Gatapreta Sapatilhas",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Gatapreta Sapatilhas - Assistente Virtual",
-    description: "Tire suas dúvidas sobre produtos, entregas e preços com nosso assistente virtual.",
+    description: "Tire suas dúvidas sobre produtos, entregas e preços. Atendimento rápido e personalizado.",
     images: ["/og-image.png"],
   },
   robots: {
