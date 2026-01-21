@@ -44,32 +44,54 @@ export async function GET(request: Request) {
     const [abandonedResult] = await db.select({ count: count() }).from(chatSessions)
       .where(whereClause ? and(whereClause, eq(chatSessions.abandoned, true)) : eq(chatSessions.abandoned, true));
 
-    // Messages
-    const [messagesResult] = await db.select({ count: count() }).from(chatMessages);
+    // Messages - JOIN with chatSessions to respect date filters
+    const [messagesResult] = await db.select({ count: count() })
+      .from(chatMessages)
+      .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+      .where(whereClause);
 
-    // Feedback
+    // Feedback - JOIN with chatSessions to respect date filters
     const [feedbackResult] = await db.select({
       avgSatisfaction: avg(sql`${chatFeedback.satisfaction}::integer`),
       avgConfidence: avg(sql`${chatFeedback.confidence}::integer`),
       count: count(),
-    }).from(chatFeedback);
+    })
+    .from(chatFeedback)
+    .innerJoin(chatSessions, eq(chatFeedback.sessionId, chatSessions.id))
+    .where(whereClause);
 
-    // Votes
-    const [votesResult] = await db.select({ count: count() }).from(chatVotes);
-    const [upvotesResult] = await db.select({ count: count() }).from(chatVotes).where(eq(chatVotes.isUpvoted, true));
+    // Votes - JOIN with chatSessions to respect date filters
+    const [votesResult] = await db.select({ count: count() })
+      .from(chatVotes)
+      .innerJoin(chatSessions, eq(chatVotes.chatId, chatSessions.id))
+      .where(whereClause);
+    
+    const [upvotesResult] = await db.select({ count: count() })
+      .from(chatVotes)
+      .innerJoin(chatSessions, eq(chatVotes.chatId, chatSessions.id))
+      .where(whereClause ? and(whereClause, eq(chatVotes.isUpvoted, true)) : eq(chatVotes.isUpvoted, true));
 
-    // Interactions
-    const [suggestionResult] = await db.select({ count: count() }).from(userInteractions).where(eq(userInteractions.interactionType, "suggestion_click"));
-    const [typedResult] = await db.select({ count: count() }).from(userInteractions).where(eq(userInteractions.interactionType, "typed_message"));
+    // Interactions - JOIN with chatSessions to respect date filters
+    const [suggestionResult] = await db.select({ count: count() })
+      .from(userInteractions)
+      .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+      .where(whereClause ? and(whereClause, eq(userInteractions.interactionType, "suggestion_click")) : eq(userInteractions.interactionType, "suggestion_click"));
+    
+    const [typedResult] = await db.select({ count: count() })
+      .from(userInteractions)
+      .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+      .where(whereClause ? and(whereClause, eq(userInteractions.interactionType, "typed_message")) : eq(userInteractions.interactionType, "typed_message"));
 
-    // Interactions for redirected/skipped sessions
+    // Interactions for redirected/skipped sessions - JOIN with chatSessions
     const [redirectedResult] = await db.select({ count: count() })
       .from(userInteractions)
-      .where(eq(userInteractions.interactionType, "post_feedback_redirect"));
+      .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+      .where(whereClause ? and(whereClause, eq(userInteractions.interactionType, "post_feedback_redirect")) : eq(userInteractions.interactionType, "post_feedback_redirect"));
     
     const [skippedResult] = await db.select({ count: count() })
       .from(userInteractions)
-      .where(eq(userInteractions.interactionType, "feedback_skipped"));
+      .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+      .where(whereClause ? and(whereClause, eq(userInteractions.interactionType, "feedback_skipped")) : eq(userInteractions.interactionType, "feedback_skipped"));
 
     // Unique users
     const [uniqueUsersResult] = await db.select({ count: sql<number>`COUNT(DISTINCT user_id)` }).from(chatSessions).where(whereClause);
