@@ -67,8 +67,13 @@ type DashboardStats = {
 function formatDuration(ms: number): string {
   if (ms === 0) return "0s";
   const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = seconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
   if (minutes === 0) return `${remainingSeconds}s`;
   return `${minutes}m ${remainingSeconds}s`;
 }

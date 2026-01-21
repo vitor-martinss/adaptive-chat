@@ -65,10 +65,12 @@ export function Chat({
       localStorage.setItem('chat_user_id', userId);
     }
     
+    const withMicroInteractions = process.env.NEXT_PUBLIC_WITH_MICRO_INTERACTIONS === "true";
+    
     fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: id, userId }),
+      body: JSON.stringify({ sessionId: id, userId, withMicroInteractions }),
     }).catch(() => {}); // Silently ignore - session may already exist
   }, [id]);
 
