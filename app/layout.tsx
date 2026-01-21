@@ -6,7 +6,7 @@ import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://chat.vercel.ai"),
+  metadataBase: new URL("https://adaptive-chat.vercel.app"),
   title: "Gatapreta Sapatilhas - Assistente Virtual",
   description: "Converse com nosso assistente virtual para tirar dúvidas sobre produtos, entregas, preços e muito mais. Atendimento rápido e personalizado.",
   keywords: ["sapatilhas", "calçados", "atendimento", "assistente virtual", "gatapreta"],
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    url: "https://chat.vercel.ai",
+    url: "https://adaptive-chat.vercel.app",
     title: "Gatapreta Sapatilhas - Assistente Virtual",
     description: "Tire suas dúvidas sobre produtos, entregas e preços com nosso assistente virtual.",
     siteName: "Gatapreta Sapatilhas",

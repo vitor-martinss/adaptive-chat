@@ -46,7 +46,7 @@ twitter: {
 
 ```typescript
 // Linha 8 - TROCAR para sua URL real do Vercel
-metadataBase: new URL("https://SEU-PROJETO.vercel.app"),
+metadataBase: new URL("https://adaptive-chat.vercel.app/"),
 ```
 
 E também em:
