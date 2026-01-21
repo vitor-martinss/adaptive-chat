@@ -23,10 +23,11 @@ export const metadata: Metadata = {
     siteName: "Gatapreta Sapatilhas",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://adaptive-chat.vercel.app/og-image.png",
         width: 1200,
         height: 630,
         alt: "Gatapreta Sapatilhas",
+        type: "image/png",
       },
     ],
   },
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Gatapreta Sapatilhas - Assistente Virtual",
     description: "Tire suas dúvidas sobre produtos, entregas e preços. Atendimento rápido e personalizado.",
-    images: ["/og-image.png"],
+    images: ["https://adaptive-chat.vercel.app/og-image.png"],
   },
   robots: {
     index: true,
