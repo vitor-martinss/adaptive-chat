@@ -74,10 +74,50 @@ export async function GET(request: Request) {
     // Unique users
     const [uniqueUsersResult] = await db.select({ count: sql<number>`COUNT(DISTINCT user_id)` }).from(chatSessions).where(whereClause);
 
-    // Duration
+    // Duration - calculate for sessions with ended_at OR use current time for active sessions
     const [durationResult] = await db.select({
+      avgMs: sql<number>`AVG(
+        CASE 
+          WHEN ended_at IS NOT NULL THEN EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000
+          ELSE EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000
+        END
+      )`,
+    }).from(chatSessions).where(whereClause);
+
+    // Duration by micro-interactions
+    const [durationWithMicroResult] = await db.select({
+      avgMs: sql<number>`AVG(
+        CASE 
+          WHEN ended_at IS NOT NULL THEN EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000
+          ELSE EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000
+        END
+      )`,
+    }).from(chatSessions).where(
+      whereClause 
+        ? and(whereClause, eq(chatSessions.withMicroInteractions, true))
+        : eq(chatSessions.withMicroInteractions, true)
+    );
+
+    const [durationWithoutMicroResult] = await db.select({
+      avgMs: sql<number>`AVG(
+        CASE 
+          WHEN ended_at IS NOT NULL THEN EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000
+          ELSE EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000
+        END
+      )`,
+    }).from(chatSessions).where(
+      whereClause 
+        ? and(whereClause, eq(chatSessions.withMicroInteractions, false))
+        : eq(chatSessions.withMicroInteractions, false)
+    );
+
+    const [durationAbandonedResult] = await db.select({
       avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)`,
-    }).from(chatSessions).where(sql`ended_at IS NOT NULL`);
+    }).from(chatSessions).where(
+      whereClause
+        ? and(whereClause, eq(chatSessions.abandoned, true), sql`ended_at IS NOT NULL`)
+        : and(eq(chatSessions.abandoned, true), sql`ended_at IS NOT NULL`)
+    );
 
     // Daily breakdown
     const dailyData = await db.select({
@@ -160,9 +200,9 @@ export async function GET(request: Request) {
       sessionDuration: {
         avgMs: Number(durationResult?.avgMs) || 0,
         medianMs: 0,
-        avgWithMicroMs: 0,
-        avgWithoutMicroMs: 0,
-        avgAbandonedMs: 0,
+        avgWithMicroMs: Number(durationWithMicroResult?.avgMs) || 0,
+        avgWithoutMicroMs: Number(durationWithoutMicroResult?.avgMs) || 0,
+        avgAbandonedMs: Number(durationAbandonedResult?.avgMs) || 0,
       },
     });
   } catch (error) {
