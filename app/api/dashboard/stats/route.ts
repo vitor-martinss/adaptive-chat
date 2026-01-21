@@ -167,19 +167,70 @@ export async function GET(request: Request) {
       upvoteRatio: 0, suggestionRatio: 0, avgSatisfaction: 0, avgConfidence: 0,
     }));
 
-    // Topic stats
+    // Topic stats with calculations
     const topicData = await db.select({
       topic: chatSessions.topic,
       caseType: chatSessions.caseType,
       count: count(),
+      avgDurationMs: sql<number>`AVG(
+        CASE 
+          WHEN ${chatSessions.endedAt} IS NOT NULL 
+          THEN EXTRACT(EPOCH FROM (${chatSessions.endedAt} - ${chatSessions.createdAt})) * 1000
+          ELSE EXTRACT(EPOCH FROM (NOW() - ${chatSessions.createdAt})) * 1000
+        END
+      )`,
     }).from(chatSessions).where(whereClause).groupBy(chatSessions.topic, chatSessions.caseType);
 
-    const topicStats = topicData.map((row) => ({
-      topic: row.topic || 'não_classificado',
-      caseType: row.caseType || 'geral',
-      sessionCount: row.count,
-      avgDurationSec: 0, avgMessages: 0, avgSatisfaction: 0,
-      suggestionClicks: 0, typedMessages: 0, suggestionRatio: 0,
+    // Calculate detailed stats for each topic
+    const topicStats = await Promise.all(topicData.map(async (row) => {
+      const topicFilter = whereClause 
+        ? and(whereClause, eq(chatSessions.topic, row.topic || ''))
+        : eq(chatSessions.topic, row.topic || '');
+
+      // Messages per topic
+      const [topicMessages] = await db.select({ 
+        count: count(),
+        avgPerSession: sql<number>`CAST(COUNT(*) AS FLOAT) / NULLIF(COUNT(DISTINCT ${chatMessages.sessionId}), 0)`
+      })
+        .from(chatMessages)
+        .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+        .where(topicFilter);
+
+      // Satisfaction per topic
+      const [topicFeedback] = await db.select({
+        avgSatisfaction: avg(sql`${chatFeedback.satisfaction}::integer`)
+      })
+        .from(chatFeedback)
+        .innerJoin(chatSessions, eq(chatFeedback.sessionId, chatSessions.id))
+        .where(topicFilter);
+
+      // Interactions per topic
+      const [topicSuggestions] = await db.select({ count: count() })
+        .from(userInteractions)
+        .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+        .where(topicFilter ? and(topicFilter, eq(userInteractions.interactionType, "suggestion_click")) : eq(userInteractions.interactionType, "suggestion_click"));
+
+      const [topicTyped] = await db.select({ count: count() })
+        .from(userInteractions)
+        .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+        .where(topicFilter ? and(topicFilter, eq(userInteractions.interactionType, "typed_message")) : eq(userInteractions.interactionType, "typed_message"));
+
+      const suggestionClicks = topicSuggestions?.count || 0;
+      const typedMessages = topicTyped?.count || 0;
+
+      return {
+        topic: row.topic || 'não_classificado',
+        caseType: row.caseType || 'geral',
+        sessionCount: row.count,
+        avgDurationSec: Math.floor((Number(row.avgDurationMs) || 0) / 1000),
+        avgMessages: Number(topicMessages?.avgPerSession) || 0,
+        avgSatisfaction: Number(topicFeedback?.avgSatisfaction) || 0,
+        suggestionClicks,
+        typedMessages,
+        suggestionRatio: (suggestionClicks + typedMessages) > 0 
+          ? (suggestionClicks / (suggestionClicks + typedMessages)) * 100 
+          : 0,
+      };
     }));
 
     // Calculate values
