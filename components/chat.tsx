@@ -54,10 +54,28 @@ export function Chat({
   const [currentModelId, setCurrentModelId] = useState(initialChatModel);
   const currentModelIdRef = useRef(currentModelId);
 
-  // Create session on mount
+  // Create session on mount and check if session is expired
   useEffect(() => {
     // Skip if session already ended (user came back)
     if (sessionStorage.getItem(`session_ended_${id}`) === "true") return;
+    
+    // Check if session is expired (older than 24 hours)
+    const checkSessionExpiry = async () => {
+      try {
+        const response = await fetch(`/api/sessions/check?sessionId=${id}`);
+        const data = await response.json();
+        
+        if (data.expired) {
+          // Session expired, redirect to new session
+          window.location.href = '/';
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to check session expiry:', error);
+      }
+    };
+    
+    checkSessionExpiry();
     
     let userId = localStorage.getItem('chat_user_id');
     if (!userId) {
