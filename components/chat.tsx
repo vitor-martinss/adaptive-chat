@@ -65,8 +65,8 @@ export function Chat({
         const response = await fetch(`/api/sessions/check?sessionId=${id}`);
         const data = await response.json();
         
-        if (data.expired) {
-          // Session expired, redirect to new session
+        // Only redirect if session exists AND is expired
+        if (data.exists && data.expired) {
           window.location.href = '/';
           return;
         }
