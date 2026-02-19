@@ -8,13 +8,13 @@ export function ChatRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    const lastChatId = localStorage.getItem("lastChatId");
+    const lastChatId = sessionStorage.getItem("lastChatId");
     
     if (lastChatId) {
       router.replace(`/chat/${lastChatId}`);
     } else {
       const newId = generateUUID();
-      localStorage.setItem("lastChatId", newId);
+      sessionStorage.setItem("lastChatId", newId);
       router.replace(`/chat/${newId}`);
     }
   }, [router]);
