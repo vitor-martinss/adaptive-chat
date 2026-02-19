@@ -93,44 +93,37 @@ export async function GET(request: Request) {
       .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
       .where(whereClause ? and(whereClause, eq(userInteractions.interactionType, "feedback_skipped")) : eq(userInteractions.interactionType, "feedback_skipped"));
 
+    // Resolved sessions
+    const [resolvedResult] = await db.select({ count: count() }).from(chatSessions)
+      .where(whereClause ? and(whereClause, eq(chatSessions.resolved, true)) : eq(chatSessions.resolved, true));
+
     // Unique users
     const [uniqueUsersResult] = await db.select({ count: sql<number>`COUNT(DISTINCT user_id)` }).from(chatSessions).where(whereClause);
 
-    // Duration - calculate for sessions with ended_at OR use current time for active sessions
+    // Duration - only for completed sessions (with ended_at)
     const [durationResult] = await db.select({
-      avgMs: sql<number>`AVG(
-        CASE 
-          WHEN ended_at IS NOT NULL THEN EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000
-          ELSE EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000
-        END
-      )`,
-    }).from(chatSessions).where(whereClause);
-
-    // Duration by micro-interactions
-    const [durationWithMicroResult] = await db.select({
-      avgMs: sql<number>`AVG(
-        CASE 
-          WHEN ended_at IS NOT NULL THEN EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000
-          ELSE EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000
-        END
-      )`,
+      avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)`,
     }).from(chatSessions).where(
       whereClause 
-        ? and(whereClause, eq(chatSessions.withMicroInteractions, true))
-        : eq(chatSessions.withMicroInteractions, true)
+        ? and(whereClause, sql`ended_at IS NOT NULL`)
+        : sql`ended_at IS NOT NULL`
+    );
+
+    // Duration by micro-interactions (only completed)
+    const [durationWithMicroResult] = await db.select({
+      avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)`,
+    }).from(chatSessions).where(
+      whereClause 
+        ? and(whereClause, eq(chatSessions.withMicroInteractions, true), sql`ended_at IS NOT NULL`)
+        : and(eq(chatSessions.withMicroInteractions, true), sql`ended_at IS NOT NULL`)
     );
 
     const [durationWithoutMicroResult] = await db.select({
-      avgMs: sql<number>`AVG(
-        CASE 
-          WHEN ended_at IS NOT NULL THEN EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000
-          ELSE EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000
-        END
-      )`,
+      avgMs: sql<number>`AVG(EXTRACT(EPOCH FROM (ended_at - created_at)) * 1000)`,
     }).from(chatSessions).where(
       whereClause 
-        ? and(whereClause, eq(chatSessions.withMicroInteractions, false))
-        : eq(chatSessions.withMicroInteractions, false)
+        ? and(whereClause, eq(chatSessions.withMicroInteractions, false), sql`ended_at IS NOT NULL`)
+        : and(eq(chatSessions.withMicroInteractions, false), sql`ended_at IS NOT NULL`)
     );
 
     const [durationAbandonedResult] = await db.select({
@@ -158,28 +151,91 @@ export async function GET(request: Request) {
       dailyMap.set(row.date, existing);
     }
 
-    const dailyBreakdown = Array.from(dailyMap.entries()).map(([date, data]) => ({
-      date,
-      sessionsWith: data.sessionsWith,
-      sessionsWithout: data.sessionsWithout,
-      totalSessions: data.sessionsWith + data.sessionsWithout,
-      totalMessages: 0, avgMessagesPerSession: 0, avgSessionDurationSec: 0,
-      upvoteRatio: 0, suggestionRatio: 0, avgSatisfaction: 0, avgConfidence: 0,
-    }));
+    // Calculate detailed daily breakdown
+    const dailyBreakdown = await Promise.all(
+      Array.from(dailyMap.entries()).map(async ([date, data]) => {
+        const dateFilter = whereClause
+          ? and(whereClause, sql`DATE(${chatSessions.createdAt}) = ${date}`)
+          : sql`DATE(${chatSessions.createdAt}) = ${date}`;
+
+        // Messages for this day
+        const [dayMessages] = await db.select({ 
+          count: count(),
+          avgPerSession: sql<number>`CAST(COUNT(*) AS FLOAT) / NULLIF(COUNT(DISTINCT ${chatMessages.sessionId}), 0)`
+        })
+          .from(chatMessages)
+          .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+          .where(dateFilter);
+
+        // Duration for this day
+        const [dayDuration] = await db.select({
+          avgSec: sql<number>`AVG(EXTRACT(EPOCH FROM (${chatSessions.endedAt} - ${chatSessions.createdAt})))`
+        })
+          .from(chatSessions)
+          .where(dateFilter ? and(dateFilter, sql`${chatSessions.endedAt} IS NOT NULL`) : sql`${chatSessions.endedAt} IS NOT NULL`);
+
+        // Votes for this day
+        const [dayVotes] = await db.select({ count: count() })
+          .from(chatVotes)
+          .innerJoin(chatSessions, eq(chatVotes.chatId, chatSessions.id))
+          .where(dateFilter);
+
+        const [dayUpvotes] = await db.select({ count: count() })
+          .from(chatVotes)
+          .innerJoin(chatSessions, eq(chatVotes.chatId, chatSessions.id))
+          .where(dateFilter ? and(dateFilter, eq(chatVotes.isUpvoted, true)) : eq(chatVotes.isUpvoted, true));
+
+        // Interactions for this day
+        const [daySuggestions] = await db.select({ count: count() })
+          .from(userInteractions)
+          .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+          .where(dateFilter ? and(dateFilter, eq(userInteractions.interactionType, "suggestion_click")) : eq(userInteractions.interactionType, "suggestion_click"));
+
+        const [dayTyped] = await db.select({ count: count() })
+          .from(userInteractions)
+          .innerJoin(chatSessions, eq(userInteractions.sessionId, chatSessions.id))
+          .where(dateFilter ? and(dateFilter, eq(userInteractions.interactionType, "typed_message")) : eq(userInteractions.interactionType, "typed_message"));
+
+        // Feedback for this day
+        const [dayFeedback] = await db.select({
+          avgSatisfaction: avg(sql`${chatFeedback.satisfaction}::integer`)
+        })
+          .from(chatFeedback)
+          .innerJoin(chatSessions, eq(chatFeedback.sessionId, chatSessions.id))
+          .where(dateFilter);
+
+        const totalVotes = dayVotes?.count || 0;
+        const upvotes = dayUpvotes?.count || 0;
+        const suggestions = daySuggestions?.count || 0;
+        const typed = dayTyped?.count || 0;
+
+        return {
+          date,
+          sessionsWith: data.sessionsWith,
+          sessionsWithout: data.sessionsWithout,
+          totalSessions: data.sessionsWith + data.sessionsWithout,
+          totalMessages: dayMessages?.count || 0,
+          avgMessagesPerSession: Number(dayMessages?.avgPerSession) || 0,
+          avgSessionDurationSec: Number(dayDuration?.avgSec) || 0,
+          upvoteRatio: totalVotes > 0 ? upvotes / totalVotes : 0,
+          suggestionRatio: (suggestions + typed) > 0 ? suggestions / (suggestions + typed) : 0,
+          avgSatisfaction: Number(dayFeedback?.avgSatisfaction) || 0,
+          avgConfidence: 0,
+        };
+      })
+    );
 
     // Topic stats with calculations
     const topicData = await db.select({
       topic: chatSessions.topic,
       caseType: chatSessions.caseType,
       count: count(),
-      avgDurationMs: sql<number>`AVG(
-        CASE 
-          WHEN ${chatSessions.endedAt} IS NOT NULL 
-          THEN EXTRACT(EPOCH FROM (${chatSessions.endedAt} - ${chatSessions.createdAt})) * 1000
-          ELSE EXTRACT(EPOCH FROM (NOW() - ${chatSessions.createdAt})) * 1000
-        END
-      )`,
-    }).from(chatSessions).where(whereClause).groupBy(chatSessions.topic, chatSessions.caseType);
+      avgDurationMs: sql<number>`AVG(EXTRACT(EPOCH FROM (${chatSessions.endedAt} - ${chatSessions.createdAt})) * 1000)`,
+    }).from(chatSessions).where(
+      whereClause 
+        ? and(whereClause, sql`${chatSessions.endedAt} IS NOT NULL`)
+        : sql`${chatSessions.endedAt} IS NOT NULL`
+    ).groupBy(chatSessions.topic, chatSessions.caseType);
 
     // Calculate detailed stats for each topic
     const topicStats = await Promise.all(topicData.map(async (row) => {
@@ -241,6 +297,7 @@ export async function GET(request: Request) {
     const completedSessions = feedbackResult?.count || 0;
     const redirectedSessions = redirectedResult?.count || 0;
     const skippedSessions = skippedResult?.count || 0;
+    const resolvedSessions = resolvedResult?.count || 0;
 
     await client.end();
 
@@ -252,6 +309,8 @@ export async function GET(request: Request) {
       withMicroInteractions: withMicroResult?.count || 0,
       withoutMicroInteractions: withoutMicroResult?.count || 0,
       abandonmentRate: totalSessions > 0 ? ((abandonedResult?.count || 0) / totalSessions) * 100 : 0,
+      resolvedSessions,
+      resolutionRate: completedSessions > 0 ? (resolvedSessions / completedSessions) * 100 : 0,
       totalMessages: messagesResult?.count || 0,
       avgMessagesPerSession: totalSessions > 0 ? (messagesResult?.count || 0) / totalSessions : 0,
       avgSatisfaction: Number(feedbackResult?.avgSatisfaction) || 0,
@@ -284,6 +343,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       totalSessions: 0, uniqueUsers: 0, uniqueUsersWithFeedback: 0, feedbackCompletionRate: 0,
       withMicroInteractions: 0, withoutMicroInteractions: 0, abandonmentRate: 0,
+      resolvedSessions: 0, resolutionRate: 0,
       totalMessages: 0, avgMessagesPerSession: 0, avgSatisfaction: 0, avgConfidence: 0,
       completedSessions: 0, redirectedSessions: 0, skippedSessions: 0, redirectRate: 0,
       totalVotes: 0, upvotes: 0, downvotes: 0, upvoteRatio: 0,

@@ -25,6 +25,7 @@ export const chatSessions = pgTable("chat_sessions", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   endedAt: timestamp("ended_at"),
   abandoned: boolean("abandoned").notNull().default(false),
+  resolved: boolean("resolved").notNull().default(false),
   withMicroInteractions: boolean("with_micro_interactions").notNull().default(false),
   topic: varchar("topic", { length: 255 }),
   caseType: varchar("case_type", { length: 64 }),

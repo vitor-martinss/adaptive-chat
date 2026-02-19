@@ -195,21 +195,18 @@ export function Chat({
 
   // Capture abandonment events
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (!sessionEnded) {
+    let abandonmentMarked = false;
+
+    const markAbandoned = () => {
+      if (!sessionEnded && !abandonmentMarked) {
+        abandonmentMarked = true;
         navigator.sendBeacon('/api/sessions/abandon', JSON.stringify({ sessionId: id }));
       }
     };
 
+    const handleBeforeUnload = () => markAbandoned();
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && !sessionEnded) {
-        fetch('/api/sessions/abandon', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: id }),
-          keepalive: true
-        }).catch(() => {});
-      }
+      if (document.visibilityState === 'hidden') markAbandoned();
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);

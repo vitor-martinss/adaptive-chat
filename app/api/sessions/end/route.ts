@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const db = drizzle(client);
 
     await db.update(chatSessions)
-      .set({ endedAt: new Date(), abandoned: !resolved })
+      .set({ endedAt: new Date(), resolved: !!resolved })
       .where(eq(chatSessions.id, sessionId));
 
     await client.end();

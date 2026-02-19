@@ -15,6 +15,8 @@ type DashboardStats = {
   withMicroInteractions: number;
   withoutMicroInteractions: number;
   abandonmentRate: number;
+  resolvedSessions: number;
+  resolutionRate: number;
   totalMessages: number;
   avgMessagesPerSession: number;
   avgSatisfaction: number;
@@ -309,16 +311,16 @@ export function AdminDashboard() {
                 <span className="font-semibold">{stats.completedSessions}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Resolvidas</span>
+                <span className="font-semibold">{stats.resolvedSessions} ({stats.resolutionRate.toFixed(1)}%)</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Redirecionados</span>
                 <span className="font-semibold">{stats.redirectedSessions}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Feedback Pulado</span>
                 <span className="font-semibold">{stats.skippedSessions}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Taxa Redirect</span>
-                <span className="font-semibold">{stats.redirectRate.toFixed(1)}%</span>
               </div>
             </div>
           </CardContent>
