@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
-import { generateUUID } from "@/lib/utils";
+import { ChatRedirect } from "@/components/chat-redirect";
 
-export default async function Page() {
-  const id = generateUUID();
-  redirect(`/chat/${id}`);
+export default function Page() {
+  return <ChatRedirect />;
 }
